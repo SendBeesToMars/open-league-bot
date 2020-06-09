@@ -10,7 +10,7 @@ info = {"max_players": 12,
         "random": False}
 
 players = {"players": [111, 222, 333, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
-        "players_left": [],
+        "players_rem": [],
         "captains": [],
         "team1": [],
         "team2": []}
@@ -31,7 +31,7 @@ async def join(ctx):
         players["players"].append(ctx.author.id)
 
     embed = discord.Embed(
-        title=f"Lobby [{len(players['players'])}/{(info['max_players'])}]", 
+        title=f"In queue [{len(players['players'])}/{(info['max_players'])}]", 
         #   prints out name of players joined with index
         description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(players["players"], start=1)), 
         color=0x00FF00)
@@ -54,10 +54,11 @@ async def join(ctx):
             players["team2"].append(captains[1])
             players["captains"].clear()
             players["captains"] += captains
-            players["players_left"] = list(set(players["players"]) - set(captains))
+            players["players_rem"] = list(set(players["players"]) - set(captains))
             await ctx.send("Captains:")
             await ctx.send("\n".join(f"<@{captain}>" for captain in captains))
-            embed = discord.Embed(title="Players to pick", description="\n".join(f"<@{player}>" for player in players["players_left"]) ,colour=0xFF5500)
+            embed = discord.Embed(title="Players to pick", description="\n".join(f"<@{player}>" for player in players["players_rem"]),
+                colour=0xFF5500)
             await ctx.send(embed=embed)
             
 #   options for max player limit and team randomisation
@@ -83,34 +84,55 @@ async def pick(ctx, arg1=None):
         return
     if arg1 == None:
         await ctx.send("```usage: =p @player```")
-    elif arg1 not in players["players_left"]:
+    elif arg1 not in players["players_rem"]:
         await ctx.send("Player not in roster")
-    elif ctx.author.id not in players["captains"]:
-        await ctx.send("You not a captain m8 :rage:")
-    elif len(players["team1"]) == len(players["team2"]) and ctx.author.id == players["captains"][0]:
+    # elif ctx.author.id not in players["captains"]:
+    #     await ctx.send("You not a captain m8 :rage:")
+    elif len(players["team1"]) == len(players["team2"]): #and ctx.author.id == players["captains"][0]:
         players["team1"].append(arg1)
-        players["players_left"].remove(arg1)
-        embed = discord.Embed(title="Players to pick", description="\n".join(f"<@{player}>" for player in players["players_left"]) ,colour=0xFF5500)
+        players["players_rem"].remove(arg1)
+        team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
+        team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
+        players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
+        desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
+                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
+                 **Remaining:**\n{players_remaining}"
+        embed = discord.Embed(title="Pick phase",
+            description=desc,
+            colour=0xFF5500)
         await ctx.send(embed=embed)
-    elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
+    elif len(players["team1"]) != len(players["team2"]): # and ctx.author.id == players["captains"][1]:
         players["team2"].append(arg1)
-        players["players_left"].remove(arg1)
-        embed = discord.Embed(title="Players to pick", description="\n".join(f"<@{player}>" for player in players["players_left"]) ,colour=0xFF5500)
+        players["players_rem"].remove(arg1)
+        team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
+        team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
+        players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
+        desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
+                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
+                 **Remaining:**\n{players_remaining}"
+        embed = discord.Embed(title="Pick phase",
+            description=desc,
+            colour=0xFF5500)
         await ctx.send(embed=embed)
     else:
         await ctx.send("Tis not your turn :rage:")
     
-
-@bot.command(name="q")
-async def quit(ctx):
+@bot.command(name="queue")
+async def queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    await ctx.bot.close()
+    if not len(players["players"]):
+        desc = r"\**crickets*\*"
+    else:
+        desc ="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(players["players"], start=1))
+    embed = discord.Embed(title=f"In queue [{len(players['players'])}/{(info['max_players'])}]", 
+            description=desc,
+            colour=0x00FF00)
+    await ctx.send(embed=embed)
 
-@bot.command(name="c")
-async def check(ctx):
-    print(ctx.author)
-    await ctx.send(f"<@{ctx.author.id}>")
+@bot.command(name="whoami")
+async def whoami(ctx):
+    await ctx.send(f"<@{ctx.author.name}\n{ctx.author.id}\n{ctx.author}>")
 
 @bot.command(name="nick")
 async def nick(ctx, arg1):
@@ -118,6 +140,17 @@ async def nick(ctx, arg1):
         return
     await ctx.author.edit(nick=arg1)
 
-bot.run(TOKEN)
+@bot.command(name="clear")
+async def clear_queue(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    players["players"] = []
+    await ctx.send("queue cleared")
 
-# print people in queue =q
+@bot.command(name="q")
+async def quit(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    await ctx.bot.close()
+
+bot.run(TOKEN)
