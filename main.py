@@ -86,9 +86,9 @@ async def pick(ctx, arg1=None):
         await ctx.send("```usage: =p @player```")
     elif arg1 not in players["players_rem"]:
         await ctx.send("Player not in roster")
-    # elif ctx.author.id not in players["captains"]:
-    #     await ctx.send("You not a captain m8 :rage:")
-    elif len(players["team1"]) == len(players["team2"]): #and ctx.author.id == players["captains"][0]:
+    elif ctx.author.id not in players["captains"]:
+        await ctx.send("You not a captain m8 :rage:")
+    elif len(players["team1"]) == len(players["team2"]) and ctx.author.id == players["captains"][0]:
         players["team1"].append(arg1)
         players["players_rem"].remove(arg1)
         team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
@@ -101,7 +101,7 @@ async def pick(ctx, arg1=None):
             description=desc,
             colour=0xFF5500)
         await ctx.send(embed=embed)
-    elif len(players["team1"]) != len(players["team2"]): # and ctx.author.id == players["captains"][1]:
+    elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
         players["team2"].append(arg1)
         players["players_rem"].remove(arg1)
         team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
