@@ -42,7 +42,7 @@ async def join(ctx):
             await ctx.send("Team 1")
             players["team1"].append(random.sample(players["players"], int(info["max_players"]/2)))
             players["team2"].append(list(set(players["players"]) - set(players["team1"])))
-            await ctx.send("\n".join(f"<@{player}>" for player in info["team1"]))
+            await ctx.send("\n".join(f"<@{player}>" for player in players["team1"]))
             await ctx.send("Team 2")
             await ctx.send("\n".join(f"<@{player}>" for player in players['team2']))
             
@@ -85,27 +85,42 @@ async def pick(ctx, arg1=None):
         await ctx.send("```usage: =p @player```")
     elif arg1 not in players["players_rem"]:
         await ctx.send("Player not in roster")
-    # elif ctx.author.id not in players["captains"]:
-    #     await ctx.send("You not a captain m8 :rage:")
-    elif len(players["team1"]) == len(players["team2"]):# and ctx.author.id == players["captains"][0]:
-        await ctx.send(embed=pick_embed(arg1, "team1"))
-    elif len(players["team1"]) != len(players["team2"]):# and ctx.author.id == players["captains"][1]:
-        await ctx.send(embed=pick_embed(arg1, "team2"))
+    elif ctx.author.id not in players["captains"]:
+        await ctx.send("You not a captain m8 :rage:")
+    elif len(players["team1"]) == len(players["team2"]) and ctx.author.id == players["captains"][0]:
+        players["team1"].append(arg1)
+        players["players_rem"].remove(arg1)
+        #   if only 1 players remains to be picked, place him into team automatically
+        if len(players["players_rem"]) == 1:
+            players["team2"].append(players["players_rem"][0])
+            players["players_rem"].remove(players["players_rem"][0])
+            await ctx.send(embed=pick_embed())
+            #   sends ping to players
+            await ctx.send("Team 1")
+            await ctx.send("\n".join(f"<@{player}>" for player in players["team1"]))
+            await ctx.send("Team 2")
+            await ctx.send("\n".join(f"<@{player}>" for player in players['team2']))
+            #   clears queue so people can start queueueueing again
+            players["players"].clear()
+        else:
+            await ctx.send(embed=pick_embed())
+    elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
+        players["team2"].append(arg1)
+        players["players_rem"].remove(arg1)
+        await ctx.send(embed=pick_embed())
     else:
         await ctx.send("Tis not your turn :rage:")
 
 # returns an embed for the captain player pick command
-def pick_embed(arg1, team):
-    players[team].append(arg1)
-    players["players_rem"].remove(arg1)
+def pick_embed():
     team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
     team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
     players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
-    nl = '\n'
+    nl = '\n'  # f string {} doesnt support backslashes(\)
     desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
                 {f'**Remaining:**{nl}{players_remaining}' if players['players_rem'] else ''}"
-    embed = discord.Embed(title="Pick phase",
+    embed = discord.Embed(title="Teams",
         description=desc,
         colour=0xFF5500)
     return embed
@@ -148,5 +163,5 @@ async def quit(ctx):
 
 bot.run(TOKEN)
 
-# if captains picking, assign last player automatically 
-# when teams full ping all players assigned - captain pick
+#TODO allocate points to winning team - (change nic of players [0]Edy -> [10]Edy)
+# ^ + clear team & captain lists after point allocation
