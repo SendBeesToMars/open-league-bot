@@ -6,7 +6,7 @@ import random
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 
 info = {"max_players": 4,
-        "random": False}
+        "random": True}
 
 players = {"players": [111, 222, 333],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
         "players_rem": [],
@@ -40,8 +40,8 @@ async def join(ctx):
     if len(players["players"]) >= info["max_players"]:
         if info["random"] == True:
             await ctx.send("Team 1")
-            players["team1"].append(random.sample(players["players"], int(info["max_players"]/2)))
-            players["team2"].append(list(set(players["players"]) - set(players["team1"])))
+            players["team1"] = random.sample(players["players"], int(info["max_players"]/2))
+            players["team2"] = list(set(players["players"]) - set(players["team1"]))
             await ctx.send("\n".join(f"<@{player}>" for player in players["team1"]))
             await ctx.send("Team 2")
             await ctx.send("\n".join(f"<@{player}>" for player in players['team2']))
