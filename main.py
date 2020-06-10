@@ -4,12 +4,11 @@ import os
 import random
 
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
-MAX_PLAYERS = 12
 
-info = {"max_players": 12,
+info = {"max_players": 4,
         "random": False}
 
-players = {"players": [111, 222, 333, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
+players = {"players": [111, 222, 333],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
         "players_rem": [],
         "captains": [],
         "team1": [],
@@ -86,42 +85,36 @@ async def pick(ctx, arg1=None):
         await ctx.send("```usage: =p @player```")
     elif arg1 not in players["players_rem"]:
         await ctx.send("Player not in roster")
-    elif ctx.author.id not in players["captains"]:
-        await ctx.send("You not a captain m8 :rage:")
-    elif len(players["team1"]) == len(players["team2"]) and ctx.author.id == players["captains"][0]:
-        players["team1"].append(arg1)
-        players["players_rem"].remove(arg1)
-        team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
-        team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
-        players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
-        desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
-                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
-                 **Remaining:**\n{players_remaining}"
-        embed = discord.Embed(title="Pick phase",
-            description=desc,
-            colour=0xFF5500)
-        await ctx.send(embed=embed)
-    elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
-        players["team2"].append(arg1)
-        players["players_rem"].remove(arg1)
-        team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
-        team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
-        players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
-        desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
-                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
-                 **Remaining:**\n{players_remaining}"
-        embed = discord.Embed(title="Pick phase",
-            description=desc,
-            colour=0xFF5500)
-        await ctx.send(embed=embed)
+    # elif ctx.author.id not in players["captains"]:
+    #     await ctx.send("You not a captain m8 :rage:")
+    elif len(players["team1"]) == len(players["team2"]):# and ctx.author.id == players["captains"][0]:
+        await ctx.send(embed=pick_embed(arg1, "team1"))
+    elif len(players["team1"]) != len(players["team2"]):# and ctx.author.id == players["captains"][1]:
+        await ctx.send(embed=pick_embed(arg1, "team2"))
     else:
         await ctx.send("Tis not your turn :rage:")
+
+# returns an embed for the captain player pick command
+def pick_embed(arg1, team):
+    players[team].append(arg1)
+    players["players_rem"].remove(arg1)
+    team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
+    team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
+    players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
+    nl = '\n'
+    desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
+                ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
+                {f'**Remaining:**{nl}{players_remaining}' if players['players_rem'] else ''}"
+    embed = discord.Embed(title="Pick phase",
+        description=desc,
+        colour=0xFF5500)
+    return embed
     
 @bot.command(name="queue")
 async def queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if not len(players["players"]):
+    if not players["players"]:
         desc = r"\**crickets*\*"
     else:
         desc ="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(players["players"], start=1))
@@ -154,3 +147,6 @@ async def quit(ctx):
     await ctx.bot.close()
 
 bot.run(TOKEN)
+
+# if captains picking, assign last player automatically 
+# when teams full ping all players assigned - captain pick
