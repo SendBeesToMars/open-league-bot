@@ -22,7 +22,6 @@ async def on_ready():
 
 @bot.command(name="j")
 async def join(ctx):
-    global players
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     
