@@ -1,4 +1,5 @@
 from discord.ext import commands
+from discord import Member
 import discord
 import os
 import random
@@ -72,16 +73,16 @@ async def leave(ctx):
 
 #   remove player from queue
 @bot.command(name="r")
-async def remove(ctx, player):
-    # converts input player id from string "<@!98374985323242>" to 98374985323242 int
-    player = int(player[3:-1])
+async def remove(ctx, player: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if player in players["players"]:
-        players["players"].remove(player)
-        await ctx.send(f"Removed {ctx.author.name} from queue")
+    if player == None:
+        await ctx.send("```usage: =r <@player name>```")
+    elif player.id in players["players"]:
+        players["players"].remove(player.id)
+        await ctx.send(f"Removed {player.name} from queue")
     else:
-        await ctx.send(f"{ctx.author.name} not in queue")
+        await ctx.send(f"{player.name} not in queue")
 
 #   options for max player limit and team randomisation
 @bot.command(name="o")
@@ -188,4 +189,5 @@ bot.run(TOKEN)
 
 #TODO allocate points to winning team - (change nic of players [0]Edy -> [10]Edy)
 # ^ + clear team & captain lists after point allocation
-# add admin only restrictions to certain functions (eg. player remove, clear queue)
+#TODO add admin only restrictions to certain functions (eg. player remove, clear queue)
+#TODO apply converters to all functions
