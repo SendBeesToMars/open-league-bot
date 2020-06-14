@@ -59,6 +59,30 @@ async def join(ctx):
                 colour=0xFF5500)
             await ctx.send(embed=embed)
             
+#   leave queue
+@bot.command(name="l")
+async def leave(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if ctx.author.id in players["players"]:
+        players["players"].remove(ctx.author.id)
+        await ctx.send(f"Removed {ctx.author.name} from queue")
+    else:
+        await ctx.send(f"{ctx.author.name} not in queue")
+
+#   remove player from queue
+@bot.command(name="r")
+async def remove(ctx, player):
+    # converts input player id from string "<@!98374985323242>" to 98374985323242 int
+    player = int(player[3:-1])
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if player in players["players"]:
+        players["players"].remove(player)
+        await ctx.send(f"Removed {ctx.author.name} from queue")
+    else:
+        await ctx.send(f"{ctx.author.name} not in queue")
+
 #   options for max player limit and team randomisation
 @bot.command(name="o")
 async def options(ctx, arg1=None, arg2=None):
@@ -164,3 +188,4 @@ bot.run(TOKEN)
 
 #TODO allocate points to winning team - (change nic of players [0]Edy -> [10]Edy)
 # ^ + clear team & captain lists after point allocation
+# add admin only restrictions to certain functions (eg. player remove, clear queue)
