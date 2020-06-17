@@ -7,9 +7,9 @@ import random
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 
 info = {"max_players": 4,
-        "random": True}
+        "random": False}
 
-players = {"players": [111, 222, 333],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
+players = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
         "players_rem": [],
         "captains": [],
         "team1": [],
@@ -32,19 +32,32 @@ async def join(ctx):
     if ctx.author.id not in players["players"]:
         players["players"].append(ctx.author.id)
 
-    embed = discord.Embed(
-        title=f"In queue [{len(players['players'])}/{(info['max_players'])}]", 
-        #   prints out name of players joined with index
-        description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(players["players"], start=1)), 
-        color=0x00FF00)
-    await ctx.send(embed=embed)
+    #   prints players in queue while its not full
+    if len(players["players"]) != info["max_players"]:
+        embed = discord.Embed(
+            title=f"In queue [{len(players['players'])}/{(info['max_players'])}]", 
+            #   prints out name of players joined with index
+            description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(players["players"], start=1)), 
+            color=0x00FF00)
+        await ctx.send(embed=embed)
 
     #   splist group of max_players into two, then prints out the two groups
     if len(players["players"]) >= info["max_players"]:
         if info["random"] == True:
-            await ctx.send("Team 1")
+            
             players["team1"] = random.sample(players["players"], int(info["max_players"]/2))
             players["team2"] = list(set(players["players"]) - set(players["team1"]))
+            
+            team1 = "\n".join(f"<@{player}>" for player in players["team1"])
+            team2 = "\n".join(f"<@{player}>" for player in players["team2"])
+            embed = discord.Embed(
+            title=f"Teams", 
+                description="Team 1\n" + team1 + "\nTeam 2\n" + team2, 
+                color=0xFF5500)
+            embed.add_field(name="Map",value=random.choice(maps['pick']), inline=False)
+
+            await ctx.send(embed=embed)
+            await ctx.send("Team 1")
             await ctx.send("\n".join(f"<@{player}>" for player in players["team1"]))
             await ctx.send("Team 2")
             await ctx.send("\n".join(f"<@{player}>" for player in players['team2']))
@@ -92,7 +105,7 @@ async def remove(ctx, player: Member=None):
 async def options(ctx, arg1: int=None, arg2: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if arg1 == None or arg2 == None or type(arg1) == int:
+    if arg1 == None or arg2 == None:
         await ctx.send("```usage: =o <max # of players> <t/f(true/false) for random teams(else random leaders are picked)>```")
     else:
         info["max_players"] = arg1
@@ -150,6 +163,8 @@ def pick_embed():
     embed = discord.Embed(title="Teams",
         description=desc,
         colour=0xFF5500)
+    if len(players["team1"]) + len(players["team2"]) == info["max_players"]:
+        embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
     return embed
     
 @bot.command(name="queue")
@@ -210,6 +225,10 @@ async def map_remove(ctx, map_int: int=None):
 async def whoami(ctx):
     await ctx.send(f"<@{ctx.author.name}\n{ctx.author.id}\n{ctx.author}>")
 
+@bot.command(name="members")
+async def members(ctx):
+    print("\n".join(f"{str(member.id)} {member.name}" for member in ctx.guild.members))
+
 @bot.command(name="nick")
 async def nick(ctx, arg1):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -229,15 +248,18 @@ async def quit(ctx):
         return
     await ctx.bot.close()
 
+@bot.command(name="debug")
+async def debug(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    print(players)
+
+
 bot.run(TOKEN)
 
 #TODO allocate points to winning team - (change nic of players [0]Edy -> [10]Edy)
 # ^ + clear team & captain lists after point allocation
 #TODO add admin only restrictions to certain functions (eg. player remove, clear queue)
-#TODO apply converters to all functions
-#TODO add/remove map
 #TODO option to change pick order 1-2..2-1/1-1..1-1
-# ^ pick map manualy or randomly
 #TODO convert to class?
 #TODO save changes to file/db
-#TODO autopick map after teams selected
