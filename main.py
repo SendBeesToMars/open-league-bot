@@ -15,6 +15,9 @@ players = {"players": [111, 222, 333],#, 444, 555, 666, 777, 888, 999, 123123123
         "team1": [],
         "team2": []}
 
+maps = {"pick": ["one", "two", "three"],
+        "ban": []}
+
 bot = commands.Bot(command_prefix="=")
 
 @bot.event
@@ -86,34 +89,34 @@ async def remove(ctx, player: Member=None):
 
 #   options for max player limit and team randomisation
 @bot.command(name="o")
-async def options(ctx, arg1=None, arg2=None):
+async def options(ctx, arg1: int=None, arg2: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if arg1 == None or arg2 == None or type(arg1) == int:
         await ctx.send("```usage: =o <max # of players> <t/f(true/false) for random teams(else random leaders are picked)>```")
     else:
-        info["max_players"] = int(arg1)
-        if arg2 == "t" or arg2 == "T" or arg2 == "true" or arg2 == "True" :
+        info["max_players"] = arg1
+        if arg2 == "t" or arg2 == "T" or arg2 == "true" or arg2 == "True":
             info["random"] = True
         elif arg2 == "f" or arg2 == "F" or arg2 == "false" or arg2 == "False":
             info["random"] = False
         embed = discord.Embed(description=f"Max players: {info['max_players']}\nRandomise teams: {info['random']}",colour=0x00FFFF)
         await ctx.send(embed=embed)
 
+#   pick player from list by team captain
 @bot.command(name="p")
-async def pick(ctx, arg1=None):
-    arg1 = int(arg1[3:-1])
+async def pick(ctx, player: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if arg1 == None:
+    if player == None:
         await ctx.send("```usage: =p @player```")
-    elif arg1 not in players["players_rem"]:
+    elif player.id not in players["players_rem"]:
         await ctx.send("Player not in roster")
     elif ctx.author.id not in players["captains"]:
         await ctx.send("You not a captain m8 :rage:")
     elif len(players["team1"]) == len(players["team2"]) and ctx.author.id == players["captains"][0]:
-        players["team1"].append(arg1)
-        players["players_rem"].remove(arg1)
+        players["team1"].append(player.id)
+        players["players_rem"].remove(player.id)
         #   if only 1 players remains to be picked, place him into team automatically
         if len(players["players_rem"]) == 1:
             players["team2"].append(players["players_rem"][0])
@@ -129,8 +132,8 @@ async def pick(ctx, arg1=None):
         else:
             await ctx.send(embed=pick_embed())
     elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
-        players["team2"].append(arg1)
-        players["players_rem"].remove(arg1)
+        players["team2"].append(player.id)
+        players["players_rem"].remove(player.id)
         await ctx.send(embed=pick_embed())
     else:
         await ctx.send("Tis not your turn :rage:")
@@ -162,6 +165,47 @@ async def queue(ctx):
             colour=0x00FF00)
     await ctx.send(embed=embed)
 
+#   list all names
+@bot.command(name="maps")
+async def map_list(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    embed = discord.Embed(title="Maps",
+        description="\n".join(f"[{i}] {map_string}" for i, map_string in enumerate(maps['pick'], start=1)),
+        colour=0x0055FF)
+    await ctx.send(embed=embed)
+
+#   select random map
+@bot.command(name="m")
+async def map_random(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    await ctx.send(f"map: {random.choice(maps['pick'])}")
+
+#   add map to roster
+@bot.command(name="madd")
+async def map_add(ctx, map_str: str=None):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if map_str == None:
+        await ctx.send("```usage: =madd <map_name>```")
+    else:
+        maps["pick"].append(map_str)
+        await ctx.send(f"map added: {map_str}")
+
+#   remove map from roster
+@bot.command(name="mremove")
+async def map_remove(ctx, map_int: int=None):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if map_int == None:
+        await ctx.send("```usage: =mremove <map_number>```")
+    elif len(maps["pick"]) < map_int - 1:
+        await ctx.send("""```diff\n- map number out of range```""")
+    else:
+        await ctx.send(f"map removed: {maps['pick'][map_int - 1]}")
+        del maps["pick"][map_int - 1]
+
 @bot.command(name="whoami")
 async def whoami(ctx):
     await ctx.send(f"<@{ctx.author.name}\n{ctx.author.id}\n{ctx.author}>")
@@ -191,3 +235,9 @@ bot.run(TOKEN)
 # ^ + clear team & captain lists after point allocation
 #TODO add admin only restrictions to certain functions (eg. player remove, clear queue)
 #TODO apply converters to all functions
+#TODO add/remove map
+#TODO option to change pick order 1-2..2-1/1-1..1-1
+# ^ pick map manualy or randomly
+#TODO convert to class?
+#TODO save changes to file/db
+#TODO autopick map after teams selected
