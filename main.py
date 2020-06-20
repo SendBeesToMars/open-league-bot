@@ -1,5 +1,6 @@
 from discord.ext import commands
 from discord import Member
+from discord.ext.commands import has_permissions
 import discord
 import os
 import random
@@ -7,9 +8,11 @@ import random
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 
 info = {"max_players": 4,
-        "random": False}
+        "random": True,
+        "pick_order": 1}
 
-players = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
+# players = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
+players = {"players": [430467901603184657, 576828535285612555, 329020569997541397],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
         "players_rem": [],
         "captains": [],
         "team1": [],
@@ -89,6 +92,7 @@ async def leave(ctx):
 
 #   remove player from queue
 @bot.command(name="r")
+@has_permissions(administrator=True)
 async def remove(ctx, player: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -102,6 +106,7 @@ async def remove(ctx, player: Member=None):
 
 #   options for max player limit and team randomisation
 @bot.command(name="o")
+@has_permissions(administrator=True)
 async def options(ctx, arg1: int=None, arg2: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -109,9 +114,10 @@ async def options(ctx, arg1: int=None, arg2: str=None):
         await ctx.send("```usage: =o <max # of players> <t/f(true/false) for random teams(else random leaders are picked)>```")
     else:
         info["max_players"] = arg1
-        if arg2 == "t" or arg2 == "T" or arg2 == "true" or arg2 == "True":
+        arg2 = arg2.lower()
+        if arg2 == "t" or arg2 == "true":
             info["random"] = True
-        elif arg2 == "f" or arg2 == "F" or arg2 == "false" or arg2 == "False":
+        elif arg2 == "f"or arg2 == "false":
             info["random"] = False
         embed = discord.Embed(description=f"Max players: {info['max_players']}\nRandomise teams: {info['random']}",colour=0x00FFFF)
         await ctx.send(embed=embed)
@@ -134,7 +140,7 @@ async def pick(ctx, player: Member=None):
         if len(players["players_rem"]) == 1:
             players["team2"].append(players["players_rem"][0])
             players["players_rem"].remove(players["players_rem"][0])
-            await ctx.send(embed=pick_embed())
+            await ctx.send(embed=team_embed())
             #   sends ping to players
             await ctx.send("Team 1")
             await ctx.send("\n".join(f"<@{player}>" for player in players["team1"]))
@@ -143,30 +149,38 @@ async def pick(ctx, player: Member=None):
             #   clears queue so people can start queueueueing again
             players["players"].clear()
         else:
-            await ctx.send(embed=pick_embed())
+            await ctx.send(embed=team_embed())
     elif len(players["team1"]) != len(players["team2"]) and ctx.author.id == players["captains"][1]:
         players["team2"].append(player.id)
         players["players_rem"].remove(player.id)
-        await ctx.send(embed=pick_embed())
+        await ctx.send(embed=team_embed())
     else:
         await ctx.send("Tis not your turn :rage:")
 
 # returns an embed for the captain player pick command
-def pick_embed():
-    team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
-    team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
+def team_embed():
     players_remaining = "\n".join(f"<@{player}>" for player in players["players_rem"])
     nl = '\n'  # f string {} doesnt support backslashes(\)
-    desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
+    if len(players["captains"]):
+        team1 = "\n".join(f"<@{player}>" for player in players["team1"][1:])
+        team2 = "\n".join(f"<@{player}>" for player in players["team2"][1:])
+        desc = f"***Team 1***\n**Captain:** <@{players['captains'][0]}>\n{team1}\n\n\
                 ***Team 2***\n**Captain:** <@{players['captains'][1]}>\n{team2}\n\n\
                 {f'**Remaining:**{nl}{players_remaining}' if players['players_rem'] else ''}"
+    else:
+        team1 = "\n".join(f"<@{player}>" for player in players["team1"])
+        team2 = "\n".join(f"<@{player}>" for player in players["team2"])
+        desc = f"***Team 1***\n{team1}\n\n\
+                ***Team 2***\n{team2}\
+                {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if players['players_rem'] else ''}"
     embed = discord.Embed(title="Teams",
         description=desc,
         colour=0xFF5500)
     if len(players["team1"]) + len(players["team2"]) == info["max_players"]:
         embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
     return embed
-    
+
+        
 @bot.command(name="queue")
 async def queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -199,6 +213,7 @@ async def map_random(ctx):
 
 #   add map to roster
 @bot.command(name="madd")
+@has_permissions(administrator=True)
 async def map_add(ctx, map_str: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -210,6 +225,7 @@ async def map_add(ctx, map_str: str=None):
 
 #   remove map from roster
 @bot.command(name="mremove")
+@has_permissions(administrator=True)
 async def map_remove(ctx, map_int: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -229,13 +245,52 @@ async def whoami(ctx):
 async def members(ctx):
     print("\n".join(f"{str(member.id)} {member.name}" for member in ctx.guild.members))
 
-@bot.command(name="nick")
-async def nick(ctx, arg1):
+#   adds points to selected team
+@bot.command(name="w")
+@has_permissions(administrator=True)
+async def win(ctx, team: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    await ctx.author.edit(nick=arg1)
+    if team == None:
+        await ctx.send("```=w <team_number>```")
+    else:
+        if team == 1:
+            team_win = "team1"
+            team_loss = "team2"
+        elif team == 2:
+            team_loss = "team1"
+            team_win = "team2"
+        else:
+            await ctx.send(embed=team_embed())
+        for player in players[team_win]:
+            # checks if not owner of server
+            if player != ctx.guild.owner.id:
+                # assigns points by reading and changing display name
+                player = ctx.message.guild.get_member(player)
+                score = int(player.display_name.split("]")[0][1:])
+                await player.edit(nick=f"[{score + 10}]{player.name}")
+        for player in players[team_loss]:
+            # checks if not owner of server
+            if player != ctx.guild.owner.id:
+                # assigns points by reading and changing display name
+                player = ctx.message.guild.get_member(player)
+                score = int(player.display_name.split("]")[0][1:])
+                await player.edit(nick=f"[{score - 10 if score > 0 else score}]{player.name}")
+
+
+@bot.command(name="nick")
+@has_permissions(administrator=True)
+async def nick(ctx, member: Member=None, nick: str=None):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if member == None or nick == None:
+        await ctx.send("```=nick <@name> <new_nick>```")
+    if member == ctx.guild.owner:
+        await ctx.send("```cant change nick of server owner```")
+    await member.edit(nick=nick)
 
 @bot.command(name="clear")
+@has_permissions(administrator=True)
 async def clear_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -243,12 +298,14 @@ async def clear_queue(ctx):
     await ctx.send("queue cleared")
 
 @bot.command(name="q")
+@has_permissions(administrator=True)
 async def quit(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     await ctx.bot.close()
 
 @bot.command(name="debug")
+@has_permissions(administrator=True)
 async def debug(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -257,9 +314,7 @@ async def debug(ctx):
 
 bot.run(TOKEN)
 
-#TODO allocate points to winning team - (change nic of players [0]Edy -> [10]Edy)
-# ^ + clear team & captain lists after point allocation
-#TODO add admin only restrictions to certain functions (eg. player remove, clear queue)
+#TODO clear team & captain lists after point allocation
 #TODO option to change pick order 1-2..2-1/1-1..1-1
-#TODO convert to class?
-#TODO save changes to file/db
+#TODO save data to file
+#TODO allow to join queue(new empty queue) when pick phase is going on
