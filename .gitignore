@@ -171,3 +171,4 @@ pip-wheel-metadata/
 
 Pipfile
 Pipfile.lock
+data.json
