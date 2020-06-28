@@ -39,16 +39,16 @@ async def join(ctx):
     if ctx.author.id not in queue["players"]:
         queue["players"].append(ctx.author.id)
 
-    #   prints players in queue while its not full
+    # prints players in queue while its not full
     if len(queue["players"]) != options["max_players"]:
         embed = discord.Embed(
             title=f"In queue [{len(queue['players'])}/{(options['max_players'])}]", 
-            #   prints out name of players joined with index
+            # prints out name of players joined with index
             description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1)), 
             color=0x00FF00)
         await ctx.send(embed=embed)
 
-    #   splist group of max_players into two, then prints out the two groups
+    # splist group of max_players into two, then prints out the two groups
     if len(queue["players"]) >= options["max_players"]:
         if options["random"] == True:
             
@@ -140,17 +140,17 @@ async def pick(ctx, player: Member=None, player2: Member=None):
     elif len(info["team1"]) == len(info["team2"]) and ctx.author.id == info["captains"][0]:
         info["team1"].append(player.id)
         queue["players_rem"].remove(player.id)
-        #   if only 1 players remains to be picked, place him into team automatically
+        # if only 1 players remains to be picked, place him into team automatically
         if len(queue["players_rem"]) == 1:
             info["team2"].append(queue["players_rem"][0])
             queue["players_rem"].remove(queue["players_rem"][0])
             await ctx.send(embed=team_embed())
-            #   sends ping to players
+            # sends ping to players
             await ctx.send("Team 1")
             await ctx.send("\n".join(f"<@{player}>" for player in info["team1"]))
             await ctx.send("Team 2")
             await ctx.send("\n".join(f"<@{player}>" for player in info['team2']))
-            #   clears queue so people can start queueueueing again
+            # clears queue so people can start queueueueing again
             queue["players"].clear()
         else:
             await ctx.send(embed=team_embed())
@@ -161,7 +161,7 @@ async def pick(ctx, player: Member=None, player2: Member=None):
     else:
         await ctx.send("Tis not your turn :rage:")
 
-# returns an embed listing teams, players left and or captains
+#   returns an embed listing teams, players left and or captains
 def team_embed():
     players_remaining = "\n".join(f"<@{player}>" for player in queue["players_rem"])
     nl = '\n'  # f string {} doesnt support backslashes(\)
@@ -256,8 +256,8 @@ async def win(ctx, team: int=None, game: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if team == None:
-        await ctx.send("```=w <team_number> (<game number>)```")
-    else:
+        await ctx.send("```=w <winning team number> (<game number>)```")
+    elif game == None:
         info["winner"] = team
         if team == 1:
             team_win = "team1"
@@ -286,7 +286,16 @@ async def win(ctx, team: int=None, game: int=None):
         save()
         reset_dict(queue)
         reset_dict(info)
-            
+    # second argument proveded changes that games winner 
+    else:
+        with open("data.json", "r+") as file:
+            info_dict = json.load(file)
+            info_dict[str(game)]["winner"] = team
+            # sets cursor to start of file, and deletes file contents
+            file.seek(0)
+            file.truncate()
+            json.dump(info_dict, file)
+
 def reset_dict(dict):
     for key in dict:
         if key == "winner":
@@ -358,6 +367,5 @@ bot.run(TOKEN)
 
 #TODO clear team & captain lists after point allocation
 #TODO option to change pick order 1-2..2-1/1-1..1-1
-#TODO edit team winner in file with =w <team> <game number>
 #TODO function to recalculate everyones score from file
 #TODO allow to join queue(new empty queue) when pick phase is going on
