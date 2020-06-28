@@ -14,8 +14,7 @@ options = {"max_players": 4,
         "pick_order": 1}
 
 # info = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
-info = {"game": None,
-        "captains": [],
+info = {"captains": [],
         "team1": [],
         "team2": [],
         "winner": None}
@@ -43,7 +42,7 @@ async def join(ctx):
     #   prints players in queue while its not full
     if len(queue["players"]) != options["max_players"]:
         embed = discord.Embed(
-            title=f"In queue [{len(info['players'])}/{(options['max_players'])}]", 
+            title=f"In queue [{len(queue['players'])}/{(options['max_players'])}]", 
             #   prints out name of players joined with index
             description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1)), 
             color=0x00FF00)
@@ -171,13 +170,13 @@ def team_embed():
         team2 = "\n".join(f"<@{player}>" for player in info["team2"][1:])
         desc = f"***Team 1***\n**Captain:** <@{info['captains'][0]}>\n{team1}\n\n\
                 ***Team 2***\n**Captain:** <@{info['captains'][1]}>\n{team2}\n\n\
-                {f'**Remaining:**{nl}{players_remaining}' if info['players_rem'] else ''}"
+                {f'**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
     else:
         team1 = "\n".join(f"<@{player}>" for player in info["team1"])
         team2 = "\n".join(f"<@{player}>" for player in info["team2"])
         desc = f"***Team 1***\n{team1}\n\n\
                 ***Team 2***\n{team2}\
-                {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if info['players_rem'] else ''}"
+                {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
     embed = discord.Embed(title="Teams",
         description=desc,
         colour=0xFF5500)
@@ -194,7 +193,7 @@ async def get_queue(ctx):
         desc = r"\**crickets*\*"
     else:
         desc ="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1))
-    embed = discord.Embed(title=f"In queue [{len(info['players'])}/{(options['max_players'])}]", 
+    embed = discord.Embed(title=f"In queue [{len(queue['players'])}/{(options['max_players'])}]", 
             description=desc,
             colour=0x00FF00)
     await ctx.send(embed=embed)
@@ -253,11 +252,11 @@ async def members(ctx):
 #   adds points to selected team
 @bot.command(name="w")
 @has_permissions(administrator=True)
-async def win(ctx, team: int=None):
+async def win(ctx, team: int=None, game: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if team == None:
-        await ctx.send("```=w <team_number>```")
+        await ctx.send("```=w <team_number> (<game number>)```")
     else:
         info["winner"] = team
         if team == 1:
@@ -268,6 +267,7 @@ async def win(ctx, team: int=None):
             team_win = "team2"
         else:
             await ctx.send(embed=team_embed())
+            return
         for player in info[team_win]:
             # checks if not owner of server
             if player != ctx.guild.owner.id:
@@ -282,6 +282,17 @@ async def win(ctx, team: int=None):
                 player = ctx.message.guild.get_member(player)
                 score = int(player.display_name.split("]")[0][1:])
                 await player.edit(nick=f"[{score - 10 if score > 0 else score}]{player.name}")
+        
+        save()
+        reset_dict(queue)
+        reset_dict(info)
+            
+def reset_dict(dict):
+    for key in dict:
+        if key == "winner":
+            dict[key] = None
+        else:
+            dict[key] = []
 
 @bot.command(name="nick")
 @has_permissions(administrator=True)
@@ -328,22 +339,25 @@ async def save_bot(ctx):
 def save():
     if not os.path.exists("data.json"):
         players_copy = {}
-        players_copy["0"] = info
+        players_copy["1"] = info
         with open("data.json", "a") as file:
             json.dump(players_copy, file)
     else:
         # get last key in dict file
-        with open("data.json", "w+") as file:
+        with open("data.json", "r+") as file:
             info_dict = json.load(file)
-            last_key = int(list(info_dict)[-1])
+            last_key = len(info_dict.keys())
             info_dict[f"{last_key + 1}"] = info
+            # sets cursor to start of file, and deletes file contents
+            file.seek(0)
+            file.truncate()
             json.dump(info_dict, file)
-        
-
+  
 
 bot.run(TOKEN)
 
 #TODO clear team & captain lists after point allocation
 #TODO option to change pick order 1-2..2-1/1-1..1-1
-#TODO save data to file
+#TODO edit team winner in file with =w <team> <game number>
+#TODO function to recalculate everyones score from file
 #TODO allow to join queue(new empty queue) when pick phase is going on
