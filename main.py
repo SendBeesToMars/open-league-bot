@@ -5,6 +5,7 @@ import discord
 import os
 import random
 import json
+import re
 
 
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
@@ -184,7 +185,6 @@ def team_embed():
         embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
     return embed
 
-        
 @bot.command(name="queue")
 async def get_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -274,14 +274,14 @@ async def win(ctx, team: int=None, game: int=None):
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
                 score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score + 10}]{player.name}")
+                await player.edit(nick=f"[{score + 10}] - {player.name}")
         for player in info[team_loss]:
             # checks if not owner of server
             if player != ctx.guild.owner.id:
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
                 score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score - 10 if score > 0 else score}]{player.name}")
+                await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}")
         
         save()
         reset_dict(queue)
@@ -361,7 +361,43 @@ def save():
             file.seek(0)
             file.truncate()
             json.dump(info_dict, file)
-  
+
+#   recalculates the players scores from data file
+@bot.command(name="recalc")
+@has_permissions(administrator=True)
+async def recalculate_score(ctx):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    with open("data.json", "r") as file:
+        info_dict = json.load(file)
+        for teams in info_dict.values():
+            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                await set_score(ctx, winner, 10)
+            
+            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                await set_score(ctx, loser, -10)
+
+async def set_score(ctx, player, score):
+    # checks if not owner of server
+    if player != ctx.guild.owner.id:
+        # assigns points by reading and changing display name
+        player = ctx.message.guild.get_member(player)
+        # gets score brackets w/ num
+        get_score = re.search(r"^(\[[0-9]+\])", player.display_name)
+
+        # if name doesnt have score -> set score to 10
+        if get_score == None:
+            # discord allows names up to 32 characters long
+            new_nic = f"[{10 if score>1 else -10}] - {player.name}"[0:32]
+            await player.edit(nick=new_nic)
+        else:
+            # removes brackets
+            current_score = int(re.sub(r"[\[\]]", "", get_score.group(0)))
+            if current_score >= 10:
+                # discord allows names up to 32 characters long
+                new_nic = f"[{current_score + score}] - {player.name}"[0:32]
+                await player.edit(nick=new_nic)
+
 
 bot.run(TOKEN)
 
@@ -369,3 +405,5 @@ bot.run(TOKEN)
 #TODO option to change pick order 1-2..2-1/1-1..1-1
 #TODO function to recalculate everyones score from file
 #TODO allow to join queue(new empty queue) when pick phase is going on
+#TODO have players receives less score for win at high score counts
+#       ^take in account team & enemy players scores when giving points?
