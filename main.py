@@ -370,6 +370,14 @@ async def recalculate_score(ctx):
         return
     with open("data.json", "r") as file:
         info_dict = json.load(file)
+        # resets everyones score
+        for teams in info_dict.values():
+            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                await set_score(ctx, winner, 0)
+            
+            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                await set_score(ctx, loser, 0)
+        
         for teams in info_dict.values():
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
                 await set_score(ctx, winner, 10)
@@ -387,23 +395,31 @@ async def set_score(ctx, player, score):
 
         # if name doesnt have score -> set score to 10
         if get_score == None:
-            # discord allows names up to 32 characters long
-            new_nic = f"[{10 if score>1 else -10}] - {player.name}"[0:32]
+            # discord allows names up to 32 characters long, thus [0:32]
+            new_nic = f"[{10 if score>1 else 0}] - {player.name}"[0:32]
             await player.edit(nick=new_nic)
         else:
-            # removes brackets
-            current_score = int(re.sub(r"[\[\]]", "", get_score.group(0)))
-            if current_score >= 10:
-                # discord allows names up to 32 characters long
-                new_nic = f"[{current_score + score}] - {player.name}"[0:32]
-                await player.edit(nick=new_nic)
+            # set score to 0 if arg is 0
+            if score == 0:
+                new_nic = f"[0] - {player.name}"[0:32]
+            else:
+                # removes brackets
+                current_score = int(re.sub(r"[\[\]]", "", get_score.group(0)))
+                print(current_score, score)
+                if score < 0 and current_score <= 0:
+                    new_nic = f"[0] - {player.name}"[0:32]
+                else:
+                    new_nic = f"[{current_score + score}] - {player.name}"[0:32]
+            await player.edit(nick=new_nic)
 
 
 bot.run(TOKEN)
 
-#TODO clear team & captain lists after point allocation
 #TODO option to change pick order 1-2..2-1/1-1..1-1
 #TODO function to recalculate everyones score from file
 #TODO allow to join queue(new empty queue) when pick phase is going on
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy players scores when giving points?
+#TODO have another file? to give custom scores to players
+#TODO print current game number in loby & pick phase
+#   ^- only allow to set winner by game number?
