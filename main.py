@@ -28,6 +28,16 @@ maps = {"pick": ["one", "two", "three"],
 
 bot = commands.Bot(command_prefix="=")
 
+game_num = None
+
+try:
+    with open("data.json", "r") as file:
+        info_dict = json.load(file)
+        game_num = len(info_dict.keys())
+except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+    game_num = 0
+    
+
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
@@ -274,14 +284,14 @@ async def win(ctx, team: int=None, game: int=None):
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
                 score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score + 10}] - {player.name}")
+                await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
         for player in info[team_loss]:
             # checks if not owner of server
             if player != ctx.guild.owner.id:
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
                 score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}")
+                await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
         
         save()
         reset_dict(queue)
@@ -353,14 +363,22 @@ def save():
             json.dump(players_copy, file)
     else:
         # get last key in dict file
-        with open("data.json", "r+") as file:
-            info_dict = json.load(file)
-            last_key = len(info_dict.keys())
-            info_dict[f"{last_key + 1}"] = info
-            # sets cursor to start of file, and deletes file contents
-            file.seek(0)
-            file.truncate()
-            json.dump(info_dict, file)
+        try:
+            with open("data.json", "r+") as file:
+                info_dict = json.load(file)
+                last_key = len(info_dict.keys())
+                info_dict[f"{last_key + 1}"] = info
+                # sets cursor to start of file, and deletes file contents
+                file.seek(0)
+                file.truncate()
+                json.dump(info_dict, file)
+        # if file empty
+        except json.decoder.JSONDecodeError:
+            with open("data.json", "a") as file:
+                players_copy = {}
+                players_copy["1"] = info
+                with open("data.json", "a") as file:
+                    json.dump(players_copy, file)
 
 #   recalculates the players scores from data file
 @bot.command(name="recalc")
@@ -375,31 +393,26 @@ async def recalculate_score(ctx):
         # sets scores to 0
         for teams in info_dict.values():
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                print(winner)
-                player_scores[str(winner)] = get_score(ctx, winner, 0)
+                player_scores[winner] = get_score(ctx, winner, 0)
         for loser in info_dict.values():
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                print(loser)
-                player_scores[str(loser)] = get_score(ctx, loser, 0) 
+                player_scores[loser] = get_score(ctx, loser, 0) 
         for player in player_scores.keys():
             if int(player) != ctx.guild.owner.id:
                 player_obj = ctx.message.guild.get_member(int(player))
-                await player_obj.edit(nick=f"[{player_scores[str(player_obj.id)]}] - {player_obj.name}"[0:32])
+                await player_obj.edit(nick=f"[{player_scores[player_obj.id]}] - {player_obj.name}"[0:32])
 
         # sets scores from file
         for teams in info_dict.values():
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                print(winner)
-                player_scores[str(winner)] = get_score(ctx, winner, 10)
+                player_scores[winner] += get_score(ctx, winner, 10)
         for loser in info_dict.values():
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                print(loser)
-                player_scores[str(loser)] = get_score(ctx, loser, -10)
-        print(player_scores)
+                player_scores[loser] +=  get_score(ctx, loser, -10)
         for player in player_scores.keys():
             if int(player) != ctx.guild.owner.id:
                 player_obj = ctx.message.guild.get_member(int(player))
-                await player_obj.edit(nick=f"[{player_scores[str(player_obj.id)]}] - {player_obj.name}"[0:32])
+                await player_obj.edit(nick=f"[{player_scores[player_obj.id]}] - {player_obj.name}"[0:32])
 
 def get_score(ctx, player, score):
     if player != ctx.guild.owner.id:
@@ -422,6 +435,9 @@ def get_score(ctx, player, score):
                     return 0
                 else:
                     return current_score + score
+    # returns 0 if guild owner
+    else:
+        return 0
 
 bot.run(TOKEN)
 
