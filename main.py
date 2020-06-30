@@ -41,7 +41,7 @@ except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
 
-@bot.command(name="j", aliases=["join"])
+@bot.command(name="join", aliases=["j"],  brief="join queue", description="join queue")
 async def join(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -94,7 +94,7 @@ async def join(ctx):
             await ctx.send(embed=embed)
             
 #   leave queue
-@bot.command(name="l", aliases=["leave"])
+@bot.command(name="leave", aliases=["l"], brief="leave queue", description="leave queue")
 async def leave(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -105,7 +105,7 @@ async def leave(ctx):
         await ctx.send(f"{ctx.author.name} not in queue")
 
 #   remove player from queue
-@bot.command(name="r", aliases=["remove"])
+@bot.command(name="remove", aliases=["r"], brief="remove player from queue", description="remove player from queue")
 @has_permissions(administrator=True)
 async def remove(ctx, player: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -119,25 +119,29 @@ async def remove(ctx, player: Member=None):
         await ctx.send(f"{player.name} not in queue")
 
 #   options for max player limit and team randomisation
-@bot.command(name="o", aliases=["options"])
+@bot.command(name="options", aliases=["o"], brief="change queue settings",
+                description="max_players: set the max ammount of players that can be in a queue\ncaptains: option to auto pick the teams or teams are selected by captains")
 @has_permissions(administrator=True)
-async def set_options(ctx, arg1: int=None, arg2: str=None):
+async def set_options(ctx, max_players: int=None, captains: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if arg1 == None or arg2 == None:
+    if max_players == None or captains == None:
         await ctx.send("```usage: =o <max # of players> <t/f(true/false) for random teams(else random leaders are picked)>```")
+        embed = discord.Embed(title="Options", description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}",colour=0x00FFFF)
+        await ctx.send(embed=embed)
     else:
-        options["max_players"] = arg1
-        arg2 = arg2.lower()
-        if arg2 == "t" or arg2 == "true":
+        options["max_players"] = max_players
+        captains = captains.lower()
+        if captains == "t" or captains == "true":
             options["random"] = True
-        elif arg2 == "f"or arg2 == "false":
+        elif captains == "f"or captains == "false":
             options["random"] = False
         embed = discord.Embed(description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}",colour=0x00FFFF)
         await ctx.send(embed=embed)
 
 #   pick player from list by team captain
-@bot.command(name="p", aliases=["pick", "choose"])
+@bot.command(name="pick", aliases=["p", "choose"], brief="captain option to pick player",
+                description="the captain picks player for their team")
 async def pick(ctx, player: Member=None, player2: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -194,7 +198,8 @@ def team_embed():
         embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
     return embed
 
-@bot.command(name="queue", aliases=["queueueue"])
+@bot.command(name="queue", aliases=["queueueue"], brief="displays the players in queue",
+                description="display the palyers in queue")
 async def get_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -208,7 +213,7 @@ async def get_queue(ctx):
     await ctx.send(embed=embed)
 
 #   list all maps
-@bot.command(name="maps")
+@bot.command(name="maps", brief="displays selectable maps", description="displays selectable maps")
 async def map_list(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -218,14 +223,14 @@ async def map_list(ctx):
     await ctx.send(embed=embed)
 
 #   select random map
-@bot.command(name="m", aliases=["map"])
+@bot.command(name="map", aliases=["m"], brief="randomly selects map", description="randomly selects map")
 async def map_random(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     await ctx.send(f"map: {random.choice(maps['pick'])}")
 
 #   add map to roster
-@bot.command(name="madd", aliases=["mapadd"])
+@bot.command(name="mapadd", aliases=["madd", "ma"], brief="adds map to selection", description="adds map to selection")
 @has_permissions(administrator=True)
 async def map_add(ctx, map_str: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -237,7 +242,7 @@ async def map_add(ctx, map_str: str=None):
         await ctx.send(f"map added: {map_str}")
 
 #   remove map from roster
-@bot.command(name="mremove", aliases=["mapremove"])
+@bot.command(name="mapremove", aliases=["mremove", "mrem", "mr"], brief="removes map from selection", description="removes map from selection")
 @has_permissions(administrator=True)
 async def map_remove(ctx, map_int: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -250,16 +255,17 @@ async def map_remove(ctx, map_int: int=None):
         await ctx.send(f"map removed: {maps['pick'][map_int - 1]}")
         del maps["pick"][map_int - 1]
 
-@bot.command(name="whoami")
+@bot.command(name="whoami", brief="displays your name and id", description="displays your name and id")
 async def whoami(ctx):
     await ctx.send(f"<@{ctx.author.name}\n{ctx.author.id}\n{ctx.author}>")
 
-@bot.command(name="members", aliases=["players"])
+@bot.command(name="members", aliases=["players"], brief="displays all members in guild",
+                description="displays all members in guild")
 async def members(ctx):
     print("\n".join(f"{str(member.id)} {member.name}" for member in ctx.guild.members))
 
 #   adds points to selected team
-@bot.command(name="w", aliases=["win"])
+@bot.command(name="win", aliases=["w"], brief="selects which team won the game", description="selects which team won the game")
 @has_permissions(administrator=True)
 async def win(ctx, team: int=None, game: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -312,7 +318,7 @@ def reset_dict(dict):
         else:
             dict[key] = []
 
-@bot.command(name="nick", aliases=["nic", "nickname"])
+@bot.command(name="nickname", aliases=["nic", "nick"], brief="change your nickname", description="change your nickname")
 @has_permissions(administrator=True)
 async def nick(ctx, member: Member=None, nick: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -323,7 +329,7 @@ async def nick(ctx, member: Member=None, nick: str=None):
         await ctx.send("```cant change nick of server owner```")
     await member.edit(nick=nick)
 
-@bot.command(name="clear", aliases=["c"])
+@bot.command(name="clear", aliases=["c"], brief="clears queue", description="clears queue")
 @has_permissions(administrator=True)
 async def clear_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -332,20 +338,12 @@ async def clear_queue(ctx):
     await ctx.send("queue cleared")
 
 #   exits bot
-@bot.command(name="q", aliases=["exit", "quit", "close"])
+@bot.command(name="quit", aliases=["q", "exit", "close"], brief="stops the bot script", description="stops the bot script")
 @has_permissions(administrator=True)
 async def quit(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     await ctx.bot.close()
-
-#   prints out info dict
-@bot.command(name="debug")
-@has_permissions(administrator=True)
-async def debug(ctx):
-    if ctx.author == bot.user or ctx.channel.name != "bot":
-        return
-    print(info)
 
 def save():
     if not os.path.exists("data.json"):
@@ -373,7 +371,8 @@ def save():
                     json.dump(players_copy, file)
 
 #   recalculates the players scores from data file
-@bot.command(name="recalc", aliases=["rec", "re"])
+@bot.command(name="recalc", aliases=["rec", "re"], brief="re-calculates everyones score", 
+                description="re-calculates everyones score from file")
 @has_permissions(administrator=True)
 async def recalculate_score(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -441,3 +440,4 @@ bot.run(TOKEN)
 #TODO have another file? to give custom scores to players
 #TODO print current game number in loby & pick phase
 #   ^- only allow to set winner by game number?
+#TODO when =o command called without args show current settings
