@@ -29,11 +29,10 @@ maps = {"pick": ["one", "two", "three"],
 bot = commands.Bot(command_prefix="=")
 
 game_num = None
-
 try:
     with open("data.json", "r") as file:
         info_dict = json.load(file)
-        game_num = len(info_dict.keys())
+        game_num = len(info_dict.keys()) + 1
 except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
     game_num = 0
     
@@ -42,7 +41,7 @@ except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
 
-@bot.command(name="j")
+@bot.command(name="j", aliases=["join"])
 async def join(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -53,7 +52,7 @@ async def join(ctx):
     # prints players in queue while its not full
     if len(queue["players"]) != options["max_players"]:
         embed = discord.Embed(
-            title=f"In queue [{len(queue['players'])}/{(options['max_players'])}]", 
+            title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{game_num}", 
             # prints out name of players joined with index
             description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1)), 
             color=0x00FF00)
@@ -69,7 +68,7 @@ async def join(ctx):
             team1 = "\n".join(f"<@{player}>" for player in info["team1"])
             team2 = "\n".join(f"<@{player}>" for player in info["team2"])
             embed = discord.Embed(
-            title=f"Teams", 
+            title=f"#{game_num} Teams", 
                 description="Team 1\n" + team1 + "\nTeam 2\n" + team2, 
                 color=0xFF5500)
             embed.add_field(name="Map",value=random.choice(maps['pick']), inline=False)
@@ -95,7 +94,7 @@ async def join(ctx):
             await ctx.send(embed=embed)
             
 #   leave queue
-@bot.command(name="l")
+@bot.command(name="l", aliases=["leave"])
 async def leave(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -106,7 +105,7 @@ async def leave(ctx):
         await ctx.send(f"{ctx.author.name} not in queue")
 
 #   remove player from queue
-@bot.command(name="r")
+@bot.command(name="r", aliases=["remove"])
 @has_permissions(administrator=True)
 async def remove(ctx, player: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -120,7 +119,7 @@ async def remove(ctx, player: Member=None):
         await ctx.send(f"{player.name} not in queue")
 
 #   options for max player limit and team randomisation
-@bot.command(name="o")
+@bot.command(name="o", aliases=["options"])
 @has_permissions(administrator=True)
 async def set_options(ctx, arg1: int=None, arg2: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -138,7 +137,7 @@ async def set_options(ctx, arg1: int=None, arg2: str=None):
         await ctx.send(embed=embed)
 
 #   pick player from list by team captain
-@bot.command(name="p")
+@bot.command(name="p", aliases=["pick", "choose"])
 async def pick(ctx, player: Member=None, player2: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -188,14 +187,14 @@ def team_embed():
         desc = f"***Team 1***\n{team1}\n\n\
                 ***Team 2***\n{team2}\
                 {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
-    embed = discord.Embed(title="Teams",
+    embed = discord.Embed(title=f"#{game_num} Teams",
         description=desc,
         colour=0xFF5500)
     if len(info["team1"]) + len(info["team2"]) == options["max_players"]:
         embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
     return embed
 
-@bot.command(name="queue")
+@bot.command(name="queue", aliases=["queueueue"])
 async def get_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
@@ -203,12 +202,12 @@ async def get_queue(ctx):
         desc = r"\**crickets*\*"
     else:
         desc ="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1))
-    embed = discord.Embed(title=f"In queue [{len(queue['players'])}/{(options['max_players'])}]", 
+    embed = discord.Embed(title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{game_num}", 
             description=desc,
             colour=0x00FF00)
     await ctx.send(embed=embed)
 
-#   list all names
+#   list all maps
 @bot.command(name="maps")
 async def map_list(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -219,14 +218,14 @@ async def map_list(ctx):
     await ctx.send(embed=embed)
 
 #   select random map
-@bot.command(name="m")
+@bot.command(name="m", aliases=["map"])
 async def map_random(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     await ctx.send(f"map: {random.choice(maps['pick'])}")
 
 #   add map to roster
-@bot.command(name="madd")
+@bot.command(name="madd", aliases=["mapadd"])
 @has_permissions(administrator=True)
 async def map_add(ctx, map_str: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -238,7 +237,7 @@ async def map_add(ctx, map_str: str=None):
         await ctx.send(f"map added: {map_str}")
 
 #   remove map from roster
-@bot.command(name="mremove")
+@bot.command(name="mremove", aliases=["mapremove"])
 @has_permissions(administrator=True)
 async def map_remove(ctx, map_int: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -255,12 +254,12 @@ async def map_remove(ctx, map_int: int=None):
 async def whoami(ctx):
     await ctx.send(f"<@{ctx.author.name}\n{ctx.author.id}\n{ctx.author}>")
 
-@bot.command(name="members")
+@bot.command(name="members", aliases=["players"])
 async def members(ctx):
     print("\n".join(f"{str(member.id)} {member.name}" for member in ctx.guild.members))
 
 #   adds points to selected team
-@bot.command(name="w")
+@bot.command(name="w", aliases=["win"])
 @has_permissions(administrator=True)
 async def win(ctx, team: int=None, game: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -313,7 +312,7 @@ def reset_dict(dict):
         else:
             dict[key] = []
 
-@bot.command(name="nick")
+@bot.command(name="nick", aliases=["nic", "nickname"])
 @has_permissions(administrator=True)
 async def nick(ctx, member: Member=None, nick: str=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -324,7 +323,7 @@ async def nick(ctx, member: Member=None, nick: str=None):
         await ctx.send("```cant change nick of server owner```")
     await member.edit(nick=nick)
 
-@bot.command(name="clear")
+@bot.command(name="clear", aliases=["c"])
 @has_permissions(administrator=True)
 async def clear_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -333,7 +332,7 @@ async def clear_queue(ctx):
     await ctx.send("queue cleared")
 
 #   exits bot
-@bot.command(name="q")
+@bot.command(name="q", aliases=["exit", "quit", "close"])
 @has_permissions(administrator=True)
 async def quit(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
@@ -347,13 +346,6 @@ async def debug(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     print(info)
-
-@bot.command(name="save")
-@has_permissions(administrator=True)
-async def save_bot(ctx):
-    if ctx.author == bot.user or ctx.channel.name != "bot":
-        return
-    save()
 
 def save():
     if not os.path.exists("data.json"):
@@ -381,7 +373,7 @@ def save():
                     json.dump(players_copy, file)
 
 #   recalculates the players scores from data file
-@bot.command(name="recalc")
+@bot.command(name="recalc", aliases=["rec", "re"])
 @has_permissions(administrator=True)
 async def recalculate_score(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
