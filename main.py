@@ -369,49 +369,59 @@ async def recalculate_score(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     with open("data.json", "r") as file:
+        player_scores = {}
         info_dict = json.load(file)
-        # resets everyones score
-        for teams in info_dict.values():
-            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                await set_score(ctx, winner, 0)
-            
-            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                await set_score(ctx, loser, 0)
-        
-        for teams in info_dict.values():
-            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                await set_score(ctx, winner, 10)
-            
-            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                await set_score(ctx, loser, -10)
 
-async def set_score(ctx, player, score):
-    # checks if not owner of server
+        # sets scores to 0
+        for teams in info_dict.values():
+            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                print(winner)
+                player_scores[str(winner)] = get_score(ctx, winner, 0)
+        for loser in info_dict.values():
+            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                print(loser)
+                player_scores[str(loser)] = get_score(ctx, loser, 0) 
+        for player in player_scores.keys():
+            if int(player) != ctx.guild.owner.id:
+                player_obj = ctx.message.guild.get_member(int(player))
+                await player_obj.edit(nick=f"[{player_scores[str(player_obj.id)]}] - {player_obj.name}"[0:32])
+
+        # sets scores from file
+        for teams in info_dict.values():
+            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                print(winner)
+                player_scores[str(winner)] = get_score(ctx, winner, 10)
+        for loser in info_dict.values():
+            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                print(loser)
+                player_scores[str(loser)] = get_score(ctx, loser, -10)
+        print(player_scores)
+        for player in player_scores.keys():
+            if int(player) != ctx.guild.owner.id:
+                player_obj = ctx.message.guild.get_member(int(player))
+                await player_obj.edit(nick=f"[{player_scores[str(player_obj.id)]}] - {player_obj.name}"[0:32])
+
+def get_score(ctx, player, score):
     if player != ctx.guild.owner.id:
         # assigns points by reading and changing display name
         player = ctx.message.guild.get_member(player)
         # gets score brackets w/ num
         get_score = re.search(r"^(\[[0-9]+\])", player.display_name)
 
-        # if name doesnt have score -> set score to 10
+        # if name doesnt have score -> set score to 10 if positive else 0
         if get_score == None:
-            # discord allows names up to 32 characters long, thus [0:32]
-            new_nic = f"[{10 if score>1 else 0}] - {player.name}"[0:32]
-            await player.edit(nick=new_nic)
+            return 10 if score > 0 else 0
         else:
             # set score to 0 if arg is 0
             if score == 0:
-                new_nic = f"[0] - {player.name}"[0:32]
+                return 0
             else:
                 # removes brackets
                 current_score = int(re.sub(r"[\[\]]", "", get_score.group(0)))
-                print(current_score, score)
                 if score < 0 and current_score <= 0:
-                    new_nic = f"[0] - {player.name}"[0:32]
+                    return 0
                 else:
-                    new_nic = f"[{current_score + score}] - {player.name}"[0:32]
-            await player.edit(nick=new_nic)
-
+                    return current_score + score
 
 bot.run(TOKEN)
 
@@ -423,3 +433,4 @@ bot.run(TOKEN)
 #TODO have another file? to give custom scores to players
 #TODO print current game number in loby & pick phase
 #   ^- only allow to set winner by game number?
+#TODO only edit discord names once
