@@ -433,4 +433,3 @@ bot.run(TOKEN)
 #TODO have another file? to give custom scores to players
 #TODO print current game number in loby & pick phase
 #   ^- only allow to set winner by game number?
-#TODO only edit discord names once
