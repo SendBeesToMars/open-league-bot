@@ -10,9 +10,9 @@ import re
 
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 
-options = {"max_players": 4,
-        "random": True,
-        "pick_order": 1}
+options = {"max_players": 6,
+        "random": False,
+        "pick_order": 2}
 
 # info = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
 info = {"captains": [],
@@ -20,7 +20,7 @@ info = {"captains": [],
         "team2": [],
         "winner": None}
 
-queue = {"players": [430467901603184657, 576828535285612555, 329020569997541397],
+queue = {"players": [430467901603184657, 576828535285612555, 329020569997541397, 275300089910657024, 205255385966313473],
         "players_rem": []}
 
 maps = {"pick": ["one", "two", "three"],
@@ -78,6 +78,8 @@ async def join(ctx):
             await ctx.send("\n".join(f"<@{player}>" for player in info["team1"]))
             await ctx.send("Team 2")
             await ctx.send("\n".join(f"<@{player}>" for player in info['team2']))
+            # clear queue
+            queue["players"].clear()
             
         # picks random captains
         else:
@@ -89,9 +91,12 @@ async def join(ctx):
             queue["players_rem"] = list(set(queue["players"]) - set(captains))
             await ctx.send("Captains:")
             await ctx.send("\n".join(f"<@{captain}>" for captain in captains))
-            embed = discord.Embed(title="Players to pick", description="\n".join(f"<@{player}>" for player in queue["players_rem"]),
+            embed = discord.Embed(title=f"{'Pick one' if options['pick_order'] != 2 else 'Pick two'}",
+                description="\n".join(f"<@{player}>" for player in queue["players_rem"]),
                 colour=0xFF5500)
             await ctx.send(embed=embed)
+            # clear queue
+            queue["players"].clear()
             
 #   leave queue
 @bot.command(name="leave", aliases=["l"], brief="leave queue", description="leave queue")
@@ -122,12 +127,14 @@ async def remove(ctx, player: Member=None):
 @bot.command(name="options", aliases=["o"], brief="change queue settings",
                 description="max_players: set the max ammount of players that can be in a queue\ncaptains: option to auto pick the teams or teams are selected by captains")
 @has_permissions(administrator=True)
-async def set_options(ctx, max_players: int=None, captains: str=None):
+async def set_options(ctx, max_players: int=None, captains: str=None, pick_order: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if max_players == None or captains == None:
-        await ctx.send("```usage: =o <max # of players> <t/f(true/false) for random teams(else random leaders are picked)>```")
-        embed = discord.Embed(title="Options", description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}",colour=0x00FFFF)
+    if max_players == None or captains == None or pick_order == None:
+        await ctx.send("```usage: =o <max # of players> <randomise teams?> <pick order 1|2>```")
+        embed = discord.Embed(title="Options",
+                 description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}\nPick order: {options['pick_order']}",
+                 colour=0x00FFFF)
         await ctx.send(embed=embed)
     else:
         options["max_players"] = max_players
@@ -136,7 +143,9 @@ async def set_options(ctx, max_players: int=None, captains: str=None):
             options["random"] = True
         elif captains == "f"or captains == "false":
             options["random"] = False
-        embed = discord.Embed(description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}",colour=0x00FFFF)
+        options["pick_order"] = pick_order
+        embed = discord.Embed(description=f"Max players: {options['max_players']}\nRandomise teams: {options['random']}\nPick order: {options['pick_order']}",
+                 colour=0x00FFFF)
         await ctx.send(embed=embed)
 
 #   pick player from list by team captain
@@ -145,19 +154,27 @@ async def set_options(ctx, max_players: int=None, captains: str=None):
 async def pick(ctx, player: Member=None, player2: Member=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    if player == None:
-        await ctx.send("```usage: =p @player```")
-    elif player.id not in queue["players_rem"]:
-        await ctx.send("Player not in roster")
-    elif ctx.author.id not in info["captains"]:
-        await ctx.send("You not a captain m8 :rage:")
-    elif len(info["team1"]) == len(info["team2"]) and ctx.author.id == info["captains"][0]:
+    if player == None or (options["pick_order"] == 2 and player2 == None):
+        await ctx.send("```usage: =p @player (@player2)```")
+    elif player.id not in queue["players_rem"] or (options["pick_order"] == 2 and player2.id not in queue["players_rem"]):
+        await ctx.send("player(s) not in roster")
+    elif ctx.author.id not in info["captains"] and ctx.author.id != ctx.guild.owner.id:
+            await ctx.send("You not a captain m8 :rage:")
+    elif len(info["team1"]) == len(info["team2"]) and (ctx.author.id == info["captains"][0] or ctx.author.id == ctx.guild.owner.id):
         info["team1"].append(player.id)
         queue["players_rem"].remove(player.id)
+        # if pick_order is set to 2, add 2nd player into team
+        if options["pick_order"] == 2:
+            info["team1"].append(player2.id)
+            queue["players_rem"].remove(player2.id)
         # if only 1 players remains to be picked, place him into team automatically
-        if len(queue["players_rem"]) == 1:
+        if len(queue["players_rem"]) == 1 or (len(queue["players_rem"]) == 2 and options["pick_order"] == 2):
             info["team2"].append(queue["players_rem"][0])
             queue["players_rem"].remove(queue["players_rem"][0])
+            # if pick_order is set to 2, add 2nd player into team
+            if options["pick_order"] == 2:
+                info["team2"].append(queue["players_rem"][0])
+                queue["players_rem"].remove(queue["players_rem"][0])
             await ctx.send(embed=team_embed())
             # sends ping to players
             await ctx.send("Team 1")
@@ -166,11 +183,16 @@ async def pick(ctx, player: Member=None, player2: Member=None):
             await ctx.send("\n".join(f"<@{player}>" for player in info['team2']))
             # clears queue so people can start queueueueing again
             queue["players"].clear()
+        
         else:
             await ctx.send(embed=team_embed())
-    elif len(info["team1"]) != len(info["team2"]) and ctx.author.id == info["captains"][1]:
+    elif len(info["team1"]) != len(info["team2"]) and (ctx.author.id == info["captains"][1] or ctx.author.id == ctx.guild.owner.id):
         info["team2"].append(player.id)
         queue["players_rem"].remove(player.id)
+        # if pick_order is set to 2, add 2nd player into team
+        if options["pick_order"] == 2:
+            info["team2"].append(player2.id)
+            queue["players_rem"].remove(player2.id)
         await ctx.send(embed=team_embed())
     else:
         await ctx.send("Tis not your turn :rage:")
@@ -265,14 +287,14 @@ async def members(ctx):
     print("\n".join(f"{str(member.id)} {member.name}" for member in ctx.guild.members))
 
 #   adds points to selected team
-@bot.command(name="win", aliases=["w"], brief="selects which team won the game", description="selects which team won the game")
+@bot.command(name="win", aliases=["w"], brief="selects which team won the game", description="selects which team won the game if game number provided")
 @has_permissions(administrator=True)
-async def win(ctx, team: int=None, game: int=None):
+async def win(ctx, team: int=None, game_num: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if team == None:
         await ctx.send("```=w <winning team number> (<game number>)```")
-    elif game == None:
+    elif game_num == None:
         info["winner"] = team
         if team == 1:
             team_win = "team1"
@@ -288,15 +310,27 @@ async def win(ctx, team: int=None, game: int=None):
             if player != ctx.guild.owner.id:
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
-                score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
+                score = re.search(r"^(\[[0-9]+\])", player.display_name)
+                if score != None:
+                    # removes brackets
+                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+                    await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
+                else:
+                    await player.edit(nick=f"[{10}] - {player.name}"[0:32])
+
         for player in info[team_loss]:
             # checks if not owner of server
             if player != ctx.guild.owner.id:
                 # assigns points by reading and changing display name
                 player = ctx.message.guild.get_member(player)
-                score = int(player.display_name.split("]")[0][1:])
-                await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
+                score = re.search(r"^(\[[0-9]+\])", player.display_name)
+                if score != None:
+                    # removes brackets
+                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+                    await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
+                else:
+                    await player.edit(nick=f"[0] - {player.name}"[0:32])
+
         
         save()
         reset_dict(queue)
@@ -305,7 +339,7 @@ async def win(ctx, team: int=None, game: int=None):
     else:
         with open("data.json", "r+") as file:
             info_dict = json.load(file)
-            info_dict[str(game)]["winner"] = team
+            info_dict[str(game_num)]["winner"] = team
             # sets cursor to start of file, and deletes file contents
             file.seek(0)
             file.truncate()
@@ -316,7 +350,7 @@ def reset_dict(dict):
         if key == "winner":
             dict[key] = None
         else:
-            dict[key] = []
+            dict[key].clear()
 
 @bot.command(name="nickname", aliases=["nic", "nick"], brief="change your nickname", description="change your nickname")
 @has_permissions(administrator=True)
@@ -334,7 +368,7 @@ async def nick(ctx, member: Member=None, nick: str=None):
 async def clear_queue(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    queue["players"] = []
+    queue["players"].clear()
     await ctx.send("queue cleared")
 
 #   exits bot
@@ -358,7 +392,7 @@ def save():
                 info_dict = json.load(file)
                 last_key = len(info_dict.keys())
                 info_dict[f"{last_key + 1}"] = info
-                # sets cursor to start of file, and deletes file contents
+                # before writing, sets cursor to start of file, and deletes file contents
                 file.seek(0)
                 file.truncate()
                 json.dump(info_dict, file)
@@ -432,12 +466,8 @@ def get_score(ctx, player, score):
 
 bot.run(TOKEN)
 
-#TODO option to change pick order 1-2..2-1/1-1..1-1
-#TODO function to recalculate everyones score from file
 #TODO allow to join queue(new empty queue) when pick phase is going on
 #TODO have players receives less score for win at high score counts
-#       ^take in account team & enemy players scores when giving points?
-#TODO have another file? to give custom scores to players
-#TODO print current game number in loby & pick phase
-#   ^- only allow to set winner by game number?
-#TODO when =o command called without args show current settings
+#       ^take in account team & enemy player scores when giving points?
+#TODO have another file(or another dict in data.json) to give custom scores to players?
+#TODO recalc works fine, but there seems to be a bug when =w calculates scores
