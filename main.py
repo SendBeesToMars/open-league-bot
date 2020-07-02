@@ -26,6 +26,8 @@ queue = {"players": [430467901603184657, 576828535285612555, 329020569997541397,
 maps = {"pick": ["one", "two", "three"],
         "ban": []}
 
+player_scores = {}
+
 bot = commands.Bot(command_prefix="=")
 
 game_num = None
@@ -316,7 +318,7 @@ async def win(ctx, team: int=None, game_num: int=None):
                     score = int(re.sub(r"[\[\]]", "", score.group(0)))
                     await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
                 else:
-                    await player.edit(nick=f"[{10}] - {player.name}"[0:32])
+                    await player.edit(nick=f"[10] - {player.name}"[0:32])
 
         for player in info[team_loss]:
             # checks if not owner of server
@@ -412,7 +414,7 @@ async def recalculate_score(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     with open("data.json", "r") as file:
-        player_scores = {}
+        player_scores.clear()
         info_dict = json.load(file)
 
         # sets scores to 0
@@ -429,9 +431,11 @@ async def recalculate_score(ctx):
 
         # sets scores from file
         for teams in info_dict.values():
+            print("win")
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
                 player_scores[winner] += get_score(ctx, winner, 10)
-        for loser in info_dict.values():
+            
+            print("loss")
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
                 player_scores[loser] +=  get_score(ctx, loser, -10)
         for player in player_scores.keys():
@@ -450,24 +454,27 @@ def get_score(ctx, player, score):
         if get_score == None:
             return 10 if score > 0 else 0
         else:
-            # set score to 0 if arg is 0
+            # set score to 0 if score arg is 0
             if score == 0:
                 return 0
             else:
-                # removes brackets
-                current_score = int(re.sub(r"[\[\]]", "", get_score.group(0)))
-                if score < 0 and current_score <= 0:
-                    return 0
+                print(player.name, player_scores[player.id], score, player_scores[player.id] + score)
+                if player_scores[player.id] + score >= 0:
+                    return score
                 else:
-                    return current_score + score
+                    return 0
     # returns 0 if guild owner
     else:
         return 0
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    bot.run(TOKEN)
 
+    
 #TODO allow to join queue(new empty queue) when pick phase is going on
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy player scores when giving points?
 #TODO have another file(or another dict in data.json) to give custom scores to players?
-#TODO recalc works fine, but there seems to be a bug when =w calculates scores
+
+#%%
+print("hello world")
