@@ -516,7 +516,6 @@ if __name__ == "__main__":
     
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy player scores when giving points?
-#TODO have another file(or another dict in data.json) to give extra points to players?
 
 #%%
 print("hello world")
