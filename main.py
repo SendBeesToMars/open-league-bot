@@ -28,13 +28,15 @@ maps = {"pick": ["one", "two", "three"],
 
 player_scores = {}
 
+player_scores_bonus = {}
+
 bot = commands.Bot(command_prefix="=")
 
 game_num = None
 try:
     with open("data.json", "r") as file:
         info_dict = json.load(file)
-        game_num = len(info_dict.keys()) + 1
+        game_num = len(info_dict.keys())
 except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
     game_num = 0
     
@@ -392,8 +394,8 @@ def save():
         try:
             with open("data.json", "r+") as file:
                 info_dict = json.load(file)
-                last_key = len(info_dict.keys())
-                info_dict[f"{last_key + 1}"] = info
+                num_of_keys = len(info_dict.keys())
+                info_dict[f"{num_of_keys}"] = info
                 # before writing, sets cursor to start of file, and deletes file contents
                 file.seek(0)
                 file.truncate()
@@ -416,12 +418,13 @@ async def recalculate_score(ctx):
     with open("data.json", "r") as file:
         player_scores.clear()
         info_dict = json.load(file)
+        # ignores the "0" key as that contains the extra points dict
+        values = list(info_dict.values())[1:]
 
         # sets scores to 0
-        for teams in info_dict.values():
+        for teams in values:
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
                 player_scores[winner] = get_score(ctx, winner, 0)
-        for loser in info_dict.values():
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
                 player_scores[loser] = get_score(ctx, loser, 0) 
         for player in player_scores.keys():
@@ -430,14 +433,15 @@ async def recalculate_score(ctx):
                 await player_obj.edit(nick=f"[{player_scores[player_obj.id]}] - {player_obj.name}"[0:32])
 
         # sets scores from file
-        for teams in info_dict.values():
-            print("win")
+        for teams in values:
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
                 player_scores[winner] += get_score(ctx, winner, 10)
-            
-            print("loss")
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
                 player_scores[loser] +=  get_score(ctx, loser, -10)
+        # adds the extra scores
+        for player in info_dict["0"].keys():
+            player_scores[int(player)] += info_dict["0"][player]
+        # changes the nicknames in discord
         for player in player_scores.keys():
             if int(player) != ctx.guild.owner.id:
                 player_obj = ctx.message.guild.get_member(int(player))
@@ -458,7 +462,6 @@ def get_score(ctx, player, score):
             if score == 0:
                 return 0
             else:
-                print(player.name, player_scores[player.id], score, player_scores[player.id] + score)
                 if player_scores[player.id] + score >= 0:
                     return score
                 else:
@@ -467,14 +470,53 @@ def get_score(ctx, player, score):
     else:
         return 0
 
+#   gives player points
+@bot.command(name="give", aliases=["g", "points"], brief="gives player points", 
+                description="gives player points")
+@has_permissions(administrator=True)
+async def give_points(ctx, player: Member=None, points: int=None):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if player == None or points == None:
+        await ctx.send("```=give <@name> <points to give>```")
+        return
+    info_dict = {}
+    try:
+        with open("data.json", "r") as file:
+            info_dict = json.load(file)
+            extra_scores = info_dict["0"]
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        extra_scores = {}
+    if player.id not in player_scores_bonus:
+        extra_scores[str(player.id)] = points
+    else:
+        extra_scores[str(player.id)] += points
+    print(extra_scores)
+    for player in extra_scores.keys():
+        if extra_scores[player] == None:
+            extra_scores[player] = 0
+        if int(player) != ctx.guild.owner.id:            
+            player_obj = ctx.message.guild.get_member(int(player))
+            score_from_name = re.search(r"^(\[[0-9]+\])", player_obj.display_name)
+            if score_from_name != None:
+                # removes brackets
+                score_from_name = int(re.sub(r"[\[\]]", "", score_from_name.group(0)))
+                if score_from_name + extra_scores[player] > 0:
+                    new_score = score_from_name + extra_scores[player]
+                else:
+                    new_score = 0
+                await player_obj.edit(nick=f"[{new_score}] - {player_obj.name}"[0:32])
+    with open("data.json", "w") as file:
+        info_dict["0"] = extra_scores
+        json.dump(info_dict, file)
+
 if __name__ == "__main__":
     bot.run(TOKEN)
 
     
-#TODO allow to join queue(new empty queue) when pick phase is going on
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy player scores when giving points?
-#TODO have another file(or another dict in data.json) to give custom scores to players?
+#TODO have another file(or another dict in data.json) to give extra points to players?
 
 #%%
 print("hello world")
