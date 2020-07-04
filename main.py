@@ -11,8 +11,9 @@ import re
 TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 
 options = {"max_players": 6,
-        "random": False,
-        "pick_order": 2}
+        "random": True,
+        "pick_order": 2,
+        "averaging": False}
 
 # info = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
 info = {"captains": [],
@@ -21,6 +22,7 @@ info = {"captains": [],
         "winner": None}
 
 queue = {"players": [430467901603184657, 576828535285612555, 329020569997541397, 275300089910657024, 205255385966313473],
+# queue = {"players": [],
         "players_rem": []}
 
 maps = {"pick": ["one", "two", "three"],
@@ -300,6 +302,8 @@ async def win(ctx, team: int=None, game_num: int=None):
         await ctx.send("```=w <winning team number> (<game number>)```")
     elif game_num == None:
         info["winner"] = team
+        sum_win = 0
+        sum_loss = 0
         if team == 1:
             team_win = "team1"
             team_loss = "team2"
@@ -309,6 +313,34 @@ async def win(ctx, team: int=None, game_num: int=None):
         else:
             await ctx.send(embed=team_embed())
             return
+        # for player in info[team_win]:
+        #     # checks if not owner of server
+        #     if player != ctx.guild.owner.id:
+        #         # assigns points by reading and changing display name
+        #         player = ctx.message.guild.get_member(player)
+        #         score = re.search(r"^(\[[0-9]+\])", player.display_name)
+        #         if score != None:
+        #             # removes brackets
+        #             score = int(re.sub(r"[\[\]]", "", score.group(0)))
+        #             await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
+        #             average1 += score
+        #         else:
+        #             await player.edit(nick=f"[10] - {player.name}"[0:32])
+
+        # for player in info[team_loss]:
+        #     # checks if not owner of server
+        #     if player != ctx.guild.owner.id:
+        #         # assigns points by reading and changing display name
+        #         player = ctx.message.guild.get_member(player)
+        #         score = re.search(r"^(\[[0-9]+\])", player.display_name)
+        #         if score != None:
+        #             # removes brackets
+        #             score = int(re.sub(r"[\[\]]", "", score.group(0)))
+        #             await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
+        #             average2 += score
+        #         else:
+        #             await player.edit(nick=f"[0] - {player.name}"[0:32])
+        # get sums
         for player in info[team_win]:
             # checks if not owner of server
             if player != ctx.guild.owner.id:
@@ -318,7 +350,34 @@ async def win(ctx, team: int=None, game_num: int=None):
                 if score != None:
                     # removes brackets
                     score = int(re.sub(r"[\[\]]", "", score.group(0)))
-                    await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
+                    sum_win += score
+
+        for player in info[team_loss]:
+            # checks if not owner of server
+            if player != ctx.guild.owner.id:
+                # assigns points by reading and changing display name
+                player = ctx.message.guild.get_member(player)
+                score = re.search(r"^(\[[0-9]+\])", player.display_name)
+                if score != None:
+                    # removes brackets
+                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+                    sum_loss += score
+
+        if sum_win != 0 and sum_loss != 0:
+            average = round(sum_loss/sum_win * 10)
+        else:
+            average = 10
+
+        for player in info[team_win]:
+            # checks if not owner of server
+            if player != ctx.guild.owner.id:
+                # assigns points by reading and changing display name
+                player = ctx.message.guild.get_member(player)
+                score = re.search(r"^(\[[0-9]+\])", player.display_name)
+                if score != None:
+                    # removes brackets
+                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+                    await player.edit(nick=f"[{score + average}] - {player.name}"[0:32])
                 else:
                     await player.edit(nick=f"[10] - {player.name}"[0:32])
 
@@ -331,9 +390,11 @@ async def win(ctx, team: int=None, game_num: int=None):
                 if score != None:
                     # removes brackets
                     score = int(re.sub(r"[\[\]]", "", score.group(0)))
-                    await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
+                    await player.edit(nick=f"[{score - average if (score - average) > 0 else score}] - {player.name}"[0:32])
                 else:
                     await player.edit(nick=f"[0] - {player.name}"[0:32])
+        
+        print(sum_win, sum_loss, average)
 
         
         save()
@@ -516,6 +577,11 @@ if __name__ == "__main__":
     
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy player scores when giving points?
+#TODO roll x sided dice
+#TODO save map selection to file
 
 #%%
-print("hello world")
+x = 2.66
+y = 0.375
+print(x, round(x * 10))
+print(y, round(y * 10))
