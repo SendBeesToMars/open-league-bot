@@ -460,6 +460,17 @@ async def give_points(ctx, player: Member=None, points: int=None):
         info_dict["points"] = extra_scores
         json.dump(info_dict, file)
 
+#   rolls x sided dice
+@bot.command(name="roll", brief="rolls an x sided dice",
+             description="rolls a dice of argument <sides> sided dice. If no argument - rolls 2 sided dice")
+async def roll(ctx, sides: int=None):
+    if ctx.author == bot.user or ctx.channel.name != "bot":
+        return
+    if sides == None:
+        await ctx.send(random.randrange(1,3))
+        return
+    await ctx.send(random.randrange(1,sides))
+
 #   returns an embed listing teams, players left and or captains
 def team_embed():
     players_remaining = "\n".join(f"<@{player}>" for player in queue["players_rem"])
@@ -564,8 +575,6 @@ if __name__ == "__main__":
     
 #TODO have players receives less score for win at high score counts
 #       ^take in account team & enemy player scores when giving points?
-#TODO roll x sided dice
-#TODO save map selection to file
 
 #%%
 x = 2.66
