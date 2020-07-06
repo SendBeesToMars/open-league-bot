@@ -203,29 +203,6 @@ async def pick(ctx, player: Member=None, player2: Member=None):
     else:
         await ctx.send("Tis not your turn :rage:")
 
-#   returns an embed listing teams, players left and or captains
-def team_embed():
-    players_remaining = "\n".join(f"<@{player}>" for player in queue["players_rem"])
-    nl = '\n'  # f string {} doesnt support backslashes(\)
-    if len(info["captains"]):
-        team1 = "\n".join(f"<@{player}>" for player in info["team1"][1:])
-        team2 = "\n".join(f"<@{player}>" for player in info["team2"][1:])
-        desc = f"***Team 1***\n**Captain:** <@{info['captains'][0]}>\n{team1}\n\n\
-                ***Team 2***\n**Captain:** <@{info['captains'][1]}>\n{team2}\n\n\
-                {f'**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
-    else:
-        team1 = "\n".join(f"<@{player}>" for player in info["team1"])
-        team2 = "\n".join(f"<@{player}>" for player in info["team2"])
-        desc = f"***Team 1***\n{team1}\n\n\
-                ***Team 2***\n{team2}\
-                {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
-    embed = discord.Embed(title=f"#{game_num} Teams",
-        description=desc,
-        colour=0xFF5500)
-    if len(info["team1"]) + len(info["team2"]) == options["max_players"]:
-        embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
-    return embed
-
 @bot.command(name="queue", aliases=["queueueue"], brief="displays the players in queue",
                 description="display the palyers in queue")
 async def get_queue(ctx):
@@ -313,56 +290,15 @@ async def win(ctx, team: int=None, game_num: int=None):
         else:
             await ctx.send(embed=team_embed())
             return
-        # for player in info[team_win]:
-        #     # checks if not owner of server
-        #     if player != ctx.guild.owner.id:
-        #         # assigns points by reading and changing display name
-        #         player = ctx.message.guild.get_member(player)
-        #         score = re.search(r"^(\[[0-9]+\])", player.display_name)
-        #         if score != None:
-        #             # removes brackets
-        #             score = int(re.sub(r"[\[\]]", "", score.group(0)))
-        #             await player.edit(nick=f"[{score + 10}] - {player.name}"[0:32])
-        #             average1 += score
-        #         else:
-        #             await player.edit(nick=f"[10] - {player.name}"[0:32])
 
-        # for player in info[team_loss]:
-        #     # checks if not owner of server
-        #     if player != ctx.guild.owner.id:
-        #         # assigns points by reading and changing display name
-        #         player = ctx.message.guild.get_member(player)
-        #         score = re.search(r"^(\[[0-9]+\])", player.display_name)
-        #         if score != None:
-        #             # removes brackets
-        #             score = int(re.sub(r"[\[\]]", "", score.group(0)))
-        #             await player.edit(nick=f"[{score - 10 if score > 0 else score}] - {player.name}"[0:32])
-        #             average2 += score
-        #         else:
-        #             await player.edit(nick=f"[0] - {player.name}"[0:32])
         # get sums
         for player in info[team_win]:
-            # checks if not owner of server
-            if player != ctx.guild.owner.id:
-                # assigns points by reading and changing display name
-                player = ctx.message.guild.get_member(player)
-                score = re.search(r"^(\[[0-9]+\])", player.display_name)
-                if score != None:
-                    # removes brackets
-                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
-                    sum_win += score
+            sum_win += get_score_from_id(ctx, player)
 
         for player in info[team_loss]:
-            # checks if not owner of server
-            if player != ctx.guild.owner.id:
-                # assigns points by reading and changing display name
-                player = ctx.message.guild.get_member(player)
-                score = re.search(r"^(\[[0-9]+\])", player.display_name)
-                if score != None:
-                    # removes brackets
-                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
-                    sum_loss += score
+            sum_loss += get_score_from_id(ctx, player)
 
+        # calcualtes the average
         if sum_win != 0 and sum_loss != 0:
             average = round(sum_loss/sum_win * 10)
         else:
@@ -370,33 +306,26 @@ async def win(ctx, team: int=None, game_num: int=None):
 
         for player in info[team_win]:
             # checks if not owner of server
-            if player != ctx.guild.owner.id:
-                # assigns points by reading and changing display name
-                player = ctx.message.guild.get_member(player)
-                score = re.search(r"^(\[[0-9]+\])", player.display_name)
-                if score != None:
-                    # removes brackets
-                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+            score = get_score_from_id(ctx, player)
+            player = get_player_obj(ctx, player)
+            if player != ctx.guild.owner:
+                if score != 0:
                     await player.edit(nick=f"[{score + average}] - {player.name}"[0:32])
                 else:
                     await player.edit(nick=f"[10] - {player.name}"[0:32])
 
         for player in info[team_loss]:
             # checks if not owner of server
-            if player != ctx.guild.owner.id:
-                # assigns points by reading and changing display name
-                player = ctx.message.guild.get_member(player)
-                score = re.search(r"^(\[[0-9]+\])", player.display_name)
-                if score != None:
-                    # removes brackets
-                    score = int(re.sub(r"[\[\]]", "", score.group(0)))
+            score = get_score_from_id(ctx, player)
+            player = get_player_obj(ctx, player)
+            if player != ctx.guild.owner:
+                if score != 0:
                     await player.edit(nick=f"[{score - average if (score - average) > 0 else score}] - {player.name}"[0:32])
                 else:
                     await player.edit(nick=f"[0] - {player.name}"[0:32])
         
         print(sum_win, sum_loss, average)
 
-        
         save()
         reset_dict(queue)
         reset_dict(info)
@@ -409,13 +338,6 @@ async def win(ctx, team: int=None, game_num: int=None):
             file.seek(0)
             file.truncate()
             json.dump(info_dict, file)
-
-def reset_dict(dict):
-    for key in dict:
-        if key == "winner":
-            dict[key] = None
-        else:
-            dict[key].clear()
 
 @bot.command(name="nickname", aliases=["nic", "nick"], brief="change your nickname", description="change your nickname")
 @has_permissions(administrator=True)
@@ -443,31 +365,6 @@ async def quit(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     await ctx.bot.close()
-
-def save():
-    if not os.path.exists("data.json"):
-        players_copy = {}
-        players_copy["1"] = info
-        with open("data.json", "a") as file:
-            json.dump(players_copy, file)
-    else:
-        # get last key in dict file
-        try:
-            with open("data.json", "r+") as file:
-                info_dict = json.load(file)
-                num_of_keys = len(info_dict.keys())
-                info_dict[f"{num_of_keys}"] = info
-                # before writing, sets cursor to start of file, and deletes file contents
-                file.seek(0)
-                file.truncate()
-                json.dump(info_dict, file)
-        # if file empty
-        except json.decoder.JSONDecodeError:
-            with open("data.json", "a") as file:
-                players_copy = {}
-                players_copy["1"] = info
-                with open("data.json", "a") as file:
-                    json.dump(players_copy, file)
 
 #   recalculates the players scores from data file
 @bot.command(name="recalc", aliases=["rec", "re"], brief="re-calculates everyones score", 
@@ -508,29 +405,6 @@ async def recalculate_score(ctx):
                 player_obj = ctx.message.guild.get_member(int(player))
                 await player_obj.edit(nick=f"[{player_scores[player_obj.id]}] - {player_obj.name}"[0:32])
 
-def get_score(ctx, player, score):
-    if player != ctx.guild.owner.id:
-        # assigns points by reading and changing display name
-        player = ctx.message.guild.get_member(player)
-        # gets score brackets w/ num
-        get_score = re.search(r"^(\[[0-9]+\])", player.display_name)
-
-        # if name doesnt have score -> set score to 10 if positive else 0
-        if get_score == None:
-            return 10 if score > 0 else 0
-        else:
-            # set score to 0 if score arg is 0
-            if score == 0:
-                return 0
-            else:
-                if player_scores[player.id] + score >= 0:
-                    return score
-                else:
-                    return 0
-    # returns 0 if guild owner
-    else:
-        return 0
-
 #   gives player points
 @bot.command(name="give", aliases=["g", "points"], brief="gives player points", 
                 description="gives player points")
@@ -570,6 +444,102 @@ async def give_points(ctx, player: Member=None, points: int=None):
     with open("data.json", "w") as file:
         info_dict["0"] = extra_scores
         json.dump(info_dict, file)
+
+#   returns an embed listing teams, players left and or captains
+def team_embed():
+    players_remaining = "\n".join(f"<@{player}>" for player in queue["players_rem"])
+    nl = '\n'  # f string {} doesnt support backslashes(\)
+    if len(info["captains"]):
+        team1 = "\n".join(f"<@{player}>" for player in info["team1"][1:])
+        team2 = "\n".join(f"<@{player}>" for player in info["team2"][1:])
+        desc = f"***Team 1***\n**Captain:** <@{info['captains'][0]}>\n{team1}\n\n\
+                ***Team 2***\n**Captain:** <@{info['captains'][1]}>\n{team2}\n\n\
+                {f'**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
+    else:
+        team1 = "\n".join(f"<@{player}>" for player in info["team1"])
+        team2 = "\n".join(f"<@{player}>" for player in info["team2"])
+        desc = f"***Team 1***\n{team1}\n\n\
+                ***Team 2***\n{team2}\
+                {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
+    embed = discord.Embed(title=f"#{game_num} Teams",
+        description=desc,
+        colour=0xFF5500)
+    if len(info["team1"]) + len(info["team2"]) == options["max_players"]:
+        embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
+    return embed
+
+def get_score_from_id(ctx, player_id):
+    if player_id != ctx.guild.owner.id:
+        # gets player object 
+        player = ctx.message.guild.get_member(player_id)
+        score = re.search(r"^(\[[0-9]+\])", player.display_name)
+        if score != None:
+            # removes brackets
+            score = int(re.sub(r"[\[\]]", "", score.group(0)))
+            return score
+        else:
+            return 0
+    else:
+        return 0
+
+def reset_dict(dict):
+    for key in dict:
+        if key == "winner":
+            dict[key] = None
+        else:
+            dict[key].clear()
+
+def get_score(ctx, player, score):
+    if player != ctx.guild.owner.id:
+        # assigns points by reading and changing display name
+        player = ctx.message.guild.get_member(player)
+        # gets score brackets w/ num
+        get_score = re.search(r"^(\[[0-9]+\])", player.display_name)
+
+        # if name doesnt have score -> set score to 10 if positive else 0
+        if get_score == None:
+            return 10 if score > 0 else 0
+        else:
+            # set score to 0 if score arg is 0
+            if score == 0:
+                return 0
+            else:
+                if player_scores[player.id] + score >= 0:
+                    return score
+                else:
+                    return 0
+    # returns 0 if guild owner
+    else:
+        return 0
+
+def save():
+    if not os.path.exists("data.json"):
+        players_copy = {}
+        players_copy["1"] = info
+        with open("data.json", "a") as file:
+            json.dump(players_copy, file)
+    else:
+        # get last key in dict file
+        try:
+            with open("data.json", "r+") as file:
+                info_dict = json.load(file)
+                num_of_keys = len(info_dict.keys())
+                info_dict[f"{num_of_keys}"] = info
+                # before writing, sets cursor to start of file, and deletes file contents
+                file.seek(0)
+                file.truncate()
+                json.dump(info_dict, file)
+        # if file empty
+        except json.decoder.JSONDecodeError:
+            with open("data.json", "a") as file:
+                players_copy = {}
+                players_copy["1"] = info
+                with open("data.json", "a") as file:
+                    json.dump(players_copy, file)
+
+def get_player_obj(ctx, player_id):
+    return ctx.message.guild.get_member(player_id)
+
 
 if __name__ == "__main__":
     bot.run(TOKEN)
