@@ -19,14 +19,12 @@ options = {"max_players": 6,
 info = {"captains": [],
         "team1": [],
         "team2": [],
-        "winner": None}
+        "winner": None,
+        "game_num": None}
 
 queue = {"players": [430467901603184657, 576828535285612555, 329020569997541397, 275300089910657024, 205255385966313473],
 # queue = {"players": [],
         "players_rem": []}
-
-maps = {"pick": ["one", "two", "three"],
-        "ban": []}
 
 player_scores = {}
 
@@ -34,13 +32,15 @@ player_scores_bonus = {}
 
 bot = commands.Bot(command_prefix="=")
 
-game_num = None
+# reads file and assigns variables to maps and game_num
 try:
     with open("data.json", "r") as file:
         info_dict = json.load(file)
-        game_num = len(info_dict.keys())
+        info["game_num"] = len(info_dict.keys())
+        maps = info_dict["maps"]
 except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-    game_num = 0
+    info["game_num"] = 0
+    maps = []
     
 
 @bot.event
@@ -58,7 +58,7 @@ async def join(ctx):
     # prints players in queue while its not full
     if len(queue["players"]) != options["max_players"]:
         embed = discord.Embed(
-            title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{game_num}", 
+            title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{info['game_num']}", 
             # prints out name of players joined with index
             description="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1)), 
             color=0x00FF00)
@@ -74,10 +74,10 @@ async def join(ctx):
             team1 = "\n".join(f"<@{player}>" for player in info["team1"])
             team2 = "\n".join(f"<@{player}>" for player in info["team2"])
             embed = discord.Embed(
-            title=f"#{game_num} Teams", 
+            title=f"#{info['game_num']} Teams", 
                 description="Team 1\n" + team1 + "\nTeam 2\n" + team2, 
                 color=0xFF5500)
-            embed.add_field(name="Map",value=random.choice(maps['pick']), inline=False)
+            embed.add_field(name="Map",value=random.choice(maps), inline=False)
 
             await ctx.send(embed=embed)
             await ctx.send("Team 1")
@@ -212,7 +212,7 @@ async def get_queue(ctx):
         desc = r"\**crickets*\*"
     else:
         desc ="\n".join(f"[{i}] <@{player}>" for i, player in enumerate(queue["players"], start=1))
-    embed = discord.Embed(title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{game_num}", 
+    embed = discord.Embed(title=f"In queue [{len(queue['players'])}/{(options['max_players'])}] #{info['game_num']}", 
             description=desc,
             colour=0x00FF00)
     await ctx.send(embed=embed)
@@ -223,7 +223,7 @@ async def map_list(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     embed = discord.Embed(title="Maps",
-        description="\n".join(f"[{i}] {map_string}" for i, map_string in enumerate(maps['pick'], start=1)),
+        description="\n".join(f"[{i}] {map_string}" for i, map_string in enumerate(maps, start=1)),
         colour=0x0055FF)
     await ctx.send(embed=embed)
 
@@ -232,7 +232,7 @@ async def map_list(ctx):
 async def map_random(ctx):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
-    await ctx.send(f"map: {random.choice(maps['pick'])}")
+    await ctx.send(f"map: {random.choice(maps)}")
 
 #   add map to roster
 @bot.command(name="mapadd", aliases=["madd", "ma"], brief="adds map to selection", description="adds map to selection")
@@ -243,7 +243,14 @@ async def map_add(ctx, map_str: str=None):
     if map_str == None:
         await ctx.send("```usage: =madd <map_name>```")
     else:
-        maps["pick"].append(map_str)
+        maps.append(map_str)
+        with open("data.json", "r+") as file:
+            info_dict = json.load(file)
+            info_dict["maps"] = maps
+            # sets cursor to start of file, and deletes file contents
+            file.seek(0)
+            file.truncate()
+            json.dump(info_dict, file)
         await ctx.send(f"map added: {map_str}")
 
 #   remove map from roster
@@ -253,12 +260,20 @@ async def map_remove(ctx, map_int: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if map_int == None:
-        await ctx.send("```usage: =mremove <map_number>```")
-    elif len(maps["pick"]) < map_int - 1:
+        print(len(maps))
+        await ctx.send("```usage: =mapremove <map_number>```")
+    elif len(maps) < map_int:
         await ctx.send("""```diff\n- map number out of range```""")
     else:
-        await ctx.send(f"map removed: {maps['pick'][map_int - 1]}")
-        del maps["pick"][map_int - 1]
+        await ctx.send(f"map removed: {maps[map_int - 1]}")
+        del maps[map_int - 1]
+        with open("data.json", "r+") as file:
+            info_dict = json.load(file)
+            info_dict["maps"] = maps
+            # sets cursor to start of file, and deletes file contents
+            file.seek(0)
+            file.truncate()
+            json.dump(info_dict, file)
 
 @bot.command(name="whoami", brief="displays your name and id", description="displays your name and id")
 async def whoami(ctx):
@@ -272,12 +287,12 @@ async def members(ctx):
 #   adds points to selected team
 @bot.command(name="win", aliases=["w"], brief="selects which team won the game", description="selects which team won the game if game number provided")
 @has_permissions(administrator=True)
-async def win(ctx, team: int=None, game_num: int=None):
+async def win(ctx, team: int=None, game_number: int=None):
     if ctx.author == bot.user or ctx.channel.name != "bot":
         return
     if team == None:
         await ctx.send("```=w <winning team number> (<game number>)```")
-    elif game_num == None:
+    elif game_number == None:
         info["winner"] = team
         sum_win = 0
         sum_loss = 0
@@ -333,7 +348,7 @@ async def win(ctx, team: int=None, game_num: int=None):
     else:
         with open("data.json", "r+") as file:
             info_dict = json.load(file)
-            info_dict[str(game_num)]["winner"] = team
+            info_dict[str(info["game_num"])]["winner"] = team
             # sets cursor to start of file, and deletes file contents
             file.seek(0)
             file.truncate()
@@ -376,8 +391,8 @@ async def recalculate_score(ctx):
     with open("data.json", "r") as file:
         player_scores.clear()
         info_dict = json.load(file)
-        # ignores the "0" key as that contains the extra points dict
-        values = list(info_dict.values())[1:]
+        # ignores the "points" key as that contains the extra points dict
+        values = list(info_dict.values())[2:]
 
         # sets scores to 0
         for teams in values:
@@ -397,8 +412,8 @@ async def recalculate_score(ctx):
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
                 player_scores[loser] +=  get_score(ctx, loser, -10)
         # adds the extra scores
-        for player in info_dict["0"].keys():
-            player_scores[int(player)] += info_dict["0"][player]
+        for player in info_dict["points"].keys():
+            player_scores[int(player)] += info_dict["points"][player]
         # changes the nicknames in discord
         for player in player_scores.keys():
             if int(player) != ctx.guild.owner.id:
@@ -419,7 +434,7 @@ async def give_points(ctx, player: Member=None, points: int=None):
     try:
         with open("data.json", "r") as file:
             info_dict = json.load(file)
-            extra_scores = info_dict["0"]
+            extra_scores = info_dict["points"]
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         extra_scores = {}
     if player.id not in player_scores_bonus:
@@ -442,7 +457,7 @@ async def give_points(ctx, player: Member=None, points: int=None):
                     new_score = 0
                 await player_obj.edit(nick=f"[{new_score}] - {player_obj.name}"[0:32])
     with open("data.json", "w") as file:
-        info_dict["0"] = extra_scores
+        info_dict["points"] = extra_scores
         json.dump(info_dict, file)
 
 #   returns an embed listing teams, players left and or captains
@@ -461,11 +476,11 @@ def team_embed():
         desc = f"***Team 1***\n{team1}\n\n\
                 ***Team 2***\n{team2}\
                 {f'{nl+nl}**Remaining:**{nl}{players_remaining}' if queue['players_rem'] else ''}"
-    embed = discord.Embed(title=f"#{game_num} Teams",
+    embed = discord.Embed(title=f"#{info['game_num']} Teams",
         description=desc,
         colour=0xFF5500)
     if len(info["team1"]) + len(info["team2"]) == options["max_players"]:
-        embed.add_field(name="Map", value=random.choice(maps['pick']), inline=False)
+        embed.add_field(name="Map", value=random.choice(maps), inline=False)
     return embed
 
 def get_score_from_id(ctx, player_id):
@@ -486,6 +501,8 @@ def reset_dict(dict):
     for key in dict:
         if key == "winner":
             dict[key] = None
+        elif key == "game_num":
+            dict[key] += 1
         else:
             dict[key].clear()
 
