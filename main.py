@@ -13,7 +13,7 @@ TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 options = {"max_players": 6,
         "random": True,
         "pick_order": 2,
-        "averaging": False}
+        "average": False}
 
 # info = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
 info = {"captains": [],
@@ -314,7 +314,7 @@ async def win(ctx, team: int=None, game_number: int=None):
             sum_loss += get_score_from_id(ctx, player)
 
         # calcualtes the average
-        if sum_win != 0 and sum_loss != 0:
+        if sum_win != 0 and sum_loss != 0 and options["average"] != False:
             average = round(sum_loss/sum_win * 10)
         else:
             average = 10
@@ -573,8 +573,7 @@ if __name__ == "__main__":
     bot.run(TOKEN)
 
     
-#TODO have players receives less score for win at high score counts
-#       ^take in account team & enemy player scores when giving points?
+#TODO fix averaging function when recalculating scores from file
 
 #%%
 x = 2.66
