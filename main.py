@@ -411,12 +411,13 @@ async def recalculate_score(ctx):
             sum_win = 0
             sum_loss = 0
 
-            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                # make another dict to hold scores for teams of only 1 game -> then average those scores
-                sum_win += player_scores[winner]
+            if options["average"] != False:
+                for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                    # make another dict to hold scores for teams of only 1 game -> then average those scores
+                    sum_win += player_scores[winner]
 
-            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                sum_loss += player_scores[loser]
+                for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                    sum_loss += player_scores[loser]
 
             # calcualtes the average
             if sum_win != 0 and sum_loss != 0 and options["average"] != False:
