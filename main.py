@@ -13,7 +13,7 @@ TOKEN = os.environ.get('DOOTDOOT_TOKEN')
 options = {"max_players": 6,
         "random": True,
         "pick_order": 2,
-        "average": False}
+        "average": True}
 
 # info = {"players": [235088799074484224, 690386474012639323, 714940599798726676],#, 444, 555, 666, 777, 888, 999, 123123123, 178178178178],
 info = {"captains": [],
@@ -338,8 +338,6 @@ async def win(ctx, team: int=None, game_number: int=None):
                     await player.edit(nick=f"[{score - average if (score - average) > 0 else score}] - {player.name}"[0:32])
                 else:
                     await player.edit(nick=f"[0] - {player.name}"[0:32])
-        
-        print(sum_win, sum_loss, average)
 
         save()
         reset_dict(queue)
@@ -396,21 +394,43 @@ async def recalculate_score(ctx):
 
         # sets scores to 0
         for teams in values:
-            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                player_scores[winner] = get_score(ctx, winner, 0)
-            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                player_scores[loser] = get_score(ctx, loser, 0) 
+            for player in teams["team1"]:
+                player_scores[player] = 0
+            for player in teams["team2"]:
+                player_scores[player] = 0
+        
+        # sets nicknames to 0
         for player in player_scores.keys():
-            if int(player) != ctx.guild.owner.id:
-                player_obj = ctx.message.guild.get_member(int(player))
-                await player_obj.edit(nick=f"[{player_scores[player_obj.id]}] - {player_obj.name}"[0:32])
+            if player != ctx.guild.owner.id:
+                player_obj = get_player_obj(ctx, player)
+                await player_obj.edit(nick=f"[0] - {player_obj.name}"[0:32])
 
         # sets scores from file
         for teams in values:
+            # sets sums to 0 on every new game
+            sum_win = 0
+            sum_loss = 0
+
             for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
-                player_scores[winner] += get_score(ctx, winner, 10)
+                # make another dict to hold scores for teams of only 1 game -> then average those scores
+                sum_win += player_scores[winner]
+
             for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
-                player_scores[loser] +=  get_score(ctx, loser, -10)
+                sum_loss += player_scores[loser]
+
+            # calcualtes the average
+            if sum_win != 0 and sum_loss != 0 and options["average"] != False:
+                average = round(sum_loss/sum_win * 10)
+            else:
+                average = 10
+
+            for winner in (teams["team1"] if teams["winner"] == 1 else teams["team2"]):
+                player_scores[winner] +=  average
+
+            for loser in (teams["team2"] if teams["winner"] == 1 else teams["team1"]):
+                if player_scores[loser] - average > 0:
+                    player_scores[loser] -=  average
+
         # adds the extra scores
         for player in info_dict["points"].keys():
             player_scores[int(player)] += info_dict["points"][player]
@@ -517,10 +537,9 @@ def reset_dict(dict):
         else:
             dict[key].clear()
 
-def get_score(ctx, player, score):
+def get_score(ctx, player, score, average):
     if player != ctx.guild.owner.id:
-        # assigns points by reading and changing display name
-        player = ctx.message.guild.get_member(player)
+        player = get_player_obj(ctx, player)
         # gets score brackets w/ num
         get_score = re.search(r"^(\[[0-9]+\])", player.display_name)
 
@@ -571,12 +590,3 @@ def get_player_obj(ctx, player_id):
 
 if __name__ == "__main__":
     bot.run(TOKEN)
-
-    
-#TODO fix averaging function when recalculating scores from file
-
-#%%
-x = 2.66
-y = 0.375
-print(x, round(x * 10))
-print(y, round(y * 10))
