@@ -307,11 +307,12 @@ async def win(ctx, team: int=None, game_number: int=None):
             return
 
         # get sums
-        for player in info[team_win]:
-            sum_win += get_score_from_id(ctx, player)
+        if options["average"] != False:
+            for player in info[team_win]:
+                sum_win += get_score_from_id(ctx, player)
 
-        for player in info[team_loss]:
-            sum_loss += get_score_from_id(ctx, player)
+            for player in info[team_loss]:
+                sum_loss += get_score_from_id(ctx, player)
 
         # calcualtes the average
         if sum_win != 0 and sum_loss != 0 and options["average"] != False:
